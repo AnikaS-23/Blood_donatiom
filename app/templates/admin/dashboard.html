@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard{% endblock %}
+{% block topbar_title %}
+  <i class="fa-solid fa-shield-halved" style="color:var(--primary);margin-right:8px;"></i>
+  Administrator Dashboard
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>System Overview</h1>
+  <p>Monitor and manage all registered hospitals, blood banks, and user accounts.</p>
+</div>
+
+<!-- ── Stat Cards ──────────────────────────────────────────── -->
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="stat-icon red"><i class="fa-solid fa-hospital"></i></div>
+    <div class="stat-info">
+      <div class="stat-value">{{ total_hospitals }}</div>
+      <div class="stat-label">Hospitals</div>
+      <div class="stat-sub">Registered institutions</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon blue"><i class="fa-solid fa-droplet"></i></div>
+    <div class="stat-info">
+      <div class="stat-value">{{ total_banks }}</div>
+      <div class="stat-label">Blood Banks</div>
+      <div class="stat-sub">Active in network</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon green"><i class="fa-solid fa-users"></i></div>
+    <div class="stat-info">
+      <div class="stat-value">{{ total_users }}</div>
+      <div class="stat-label">User Accounts</div>
+      <div class="stat-sub">Total registered</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon yellow"><i class="fa-solid fa-network-wired"></i></div>
+    <div class="stat-info">
+      <div class="stat-value">Online</div>
+      <div class="stat-label">System Status</div>
+      <div class="stat-sub">All services operational</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Admin Quick Nav ────────────────────────────────────────── -->
+<div class="grid-3" style="margin-bottom:24px;">
+
+  <a href="{{ url_for('admin.hospitals') }}" style="text-decoration:none;">
+    <div class="card" style="transition:box-shadow 0.2s,transform 0.2s;cursor:pointer;"
+         onmouseenter="this.style.boxShadow='var(--shadow-md)';this.style.transform='translateY(-2px)'"
+         onmouseleave="this.style.boxShadow='';this.style.transform=''">
+      <div class="card-body" style="text-align:center;padding:28px 20px;">
+        <div style="width:52px;height:52px;background:rgba(139,0,0,0.08);border-radius:50%;
+                    display:flex;align-items:center;justify-content:center;
+                    margin:0 auto 14px;font-size:1.4rem;color:var(--primary);">
+          <i class="fa-solid fa-hospital"></i>
+        </div>
+        <h3 style="margin-bottom:6px;">Manage Hospitals</h3>
+        <p style="font-size:0.82rem;">View, verify and manage hospital registrations.</p>
+        <div style="margin-top:16px;" class="btn btn-outline btn-sm">
+          Open <i class="fa-solid fa-arrow-right" style="font-size:0.7rem;"></i>
+        </div>
+      </div>
+    </div>
+  </a>
+
+  <a href="{{ url_for('admin.blood_banks') }}" style="text-decoration:none;">
+    <div class="card" style="transition:box-shadow 0.2s,transform 0.2s;cursor:pointer;"
+         onmouseenter="this.style.boxShadow='var(--shadow-md)';this.style.transform='translateY(-2px)'"
+         onmouseleave="this.style.boxShadow='';this.style.transform=''">
+      <div class="card-body" style="text-align:center;padding:28px 20px;">
+        <div style="width:52px;height:52px;background:rgba(41,128,185,0.08);border-radius:50%;
+                    display:flex;align-items:center;justify-content:center;
+                    margin:0 auto 14px;font-size:1.4rem;color:var(--status-info);">
+          <i class="fa-solid fa-droplet"></i>
+        </div>
+        <h3 style="margin-bottom:6px;">Manage Blood Banks</h3>
+        <p style="font-size:0.82rem;">Control blood bank network participation and status.</p>
+        <div style="margin-top:16px;" class="btn btn-outline btn-sm">
+          Open <i class="fa-solid fa-arrow-right" style="font-size:0.7rem;"></i>
+        </div>
+      </div>
+    </div>
+  </a>
+
+  <a href="{{ url_for('admin.users') }}" style="text-decoration:none;">
+    <div class="card" style="transition:box-shadow 0.2s,transform 0.2s;cursor:pointer;"
+         onmouseenter="this.style.boxShadow='var(--shadow-md)';this.style.transform='translateY(-2px)'"
+         onmouseleave="this.style.boxShadow='';this.style.transform=''">
+      <div class="card-body" style="text-align:center;padding:28px 20px;">
+        <div style="width:52px;height:52px;background:rgba(39,174,96,0.08);border-radius:50%;
+                    display:flex;align-items:center;justify-content:center;
+                    margin:0 auto 14px;font-size:1.4rem;color:var(--status-ok);">
+          <i class="fa-solid fa-users"></i>
+        </div>
+        <h3 style="margin-bottom:6px;">User Accounts</h3>
+        <p style="font-size:0.82rem;">View and manage all user accounts and their permissions.</p>
+        <div style="margin-top:16px;" class="btn btn-outline btn-sm">
+          Open <i class="fa-solid fa-arrow-right" style="font-size:0.7rem;"></i>
+        </div>
+      </div>
+    </div>
+  </a>
+
+</div>
+
+<!-- ── System Info ────────────────────────────────────────────── -->
+<div class="card">
+  <div class="card-header">
+    <i class="fa-solid fa-circle-info" style="color:var(--status-info);"></i>
+    <h3>System Information</h3>
+  </div>
+  <div class="card-body">
+    <div class="grid-2">
+      <div>
+        <p class="fs-sm fw-600" style="color:var(--text-secondary);margin-bottom:12px;">Network Summary</p>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div class="d-flex align-center justify-between fs-sm">
+            <span class="text-muted">Registered Hospitals</span>
+            <strong>{{ total_hospitals }}</strong>
+          </div>
+          <div class="d-flex align-center justify-between fs-sm">
+            <span class="text-muted">Active Blood Banks</span>
+            <strong>{{ total_banks }}</strong>
+          </div>
+          <div class="d-flex align-center justify-between fs-sm">
+            <span class="text-muted">Total User Accounts</span>
+            <strong>{{ total_users }}</strong>
+          </div>
+        </div>
+      </div>
+      <div>
+        <p class="fs-sm fw-600" style="color:var(--text-secondary);margin-bottom:12px;">Services Status</p>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div class="d-flex align-center gap-8 fs-sm">
+            <span style="color:var(--status-ok);">●</span>
+            <span>Database – Connected</span>
+          </div>
+          <div class="d-flex align-center gap-8 fs-sm">
+            <span style="color:var(--status-ok);">●</span>
+            <span>WebSocket Server – Running</span>
+          </div>
+          <div class="d-flex align-center gap-8 fs-sm">
+            <span style="color:var(--status-ok);">●</span>
+            <span>Alert Scheduler – Active</span>
+          </div>
+          <div class="d-flex align-center gap-8 fs-sm">
+            <span style="color:var(--status-ok);">●</span>
+            <span>Prediction Engine – Ready</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

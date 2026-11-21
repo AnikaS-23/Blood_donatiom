@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Sign In – BloodConnect</title>
+  <link rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+    crossorigin="anonymous"/>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}"/>
+  <style>body { background: #fff; }</style>
+</head>
+<body>
+<div class="auth-page">
+
+  <!-- Left decorative panel -->
+  <div class="auth-left">
+    <div class="auth-left-content">
+      <div class="auth-brand-icon">🩸</div>
+      <h1>BloodConnect</h1>
+      <p>Emergency Blood Availability Portal connecting hospitals and blood banks in real time.</p>
+      <div class="auth-features">
+        <div class="auth-feature"><i class="fa-solid fa-bolt"></i> Real-time emergency alerts</div>
+        <div class="auth-feature"><i class="fa-solid fa-vials"></i> Live inventory tracking</div>
+        <div class="auth-feature"><i class="fa-solid fa-chart-line"></i> AI shortage predictions</div>
+        <div class="auth-feature"><i class="fa-solid fa-location-dot"></i> Geo-based bank matching</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right form panel -->
+  <div class="auth-right">
+    <div class="auth-form-box">
+      <h2>Welcome back</h2>
+      <p class="auth-subtitle">Sign in to your account to continue</p>
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}{% for category, message in messages %}
+          <div class="alert alert-{{ category }}" style="margin-bottom:16px;">
+            <i class="fa-solid fa-circle-exclamation"></i> {{ message }}
+          </div>
+        {% endfor %}{% endif %}
+      {% endwith %}
+
+      <form method="POST" action="{{ url_for('auth.login') }}" novalidate>
+        <div class="form-group">
+          <label class="form-label" for="username">Username</label>
+          <input type="text" id="username" name="username" class="form-control"
+                 placeholder="Enter your username" required autofocus/>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="password">Password</label>
+          <div style="position:relative;">
+            <input type="password" id="password" name="password" class="form-control"
+                   placeholder="Enter your password" required style="padding-right:40px;"/>
+            <button type="button" onclick="togglePwd()" title="Show/hide"
+                    style="position:absolute;right:10px;top:50%;transform:translateY(-50%);
+                           background:none;border:none;cursor:pointer;color:var(--text-muted);">
+              <i class="fa-solid fa-eye" id="pwd-eye"></i>
+            </button>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary w-100" style="margin-top:8px;padding:12px;">
+          <i class="fa-solid fa-right-to-bracket"></i> Sign In
+        </button>
+      </form>
+
+      <div class="divider"></div>
+      <p style="text-align:center;font-size:0.85rem;color:var(--text-muted);">
+        No account yet? <a href="{{ url_for('auth.register') }}" style="font-weight:600;">Register here</a>
+      </p>
+
+      <div style="margin-top:24px;padding:14px;background:var(--bg-main);
+                  border-radius:var(--radius-sm);border:1px solid var(--border);">
+        <p style="font-size:0.75rem;font-weight:600;color:var(--text-secondary);margin-bottom:8px;
+                  text-transform:uppercase;letter-spacing:0.5px;">Demo Credentials</p>
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <span style="font-size:0.78rem;color:var(--text-muted);">
+            <strong style="color:var(--text-primary);min-width:80px;display:inline-block;">Admin:</strong>
+            admin / Admin@1234
+          </span>
+          <span style="font-size:0.78rem;color:var(--text-muted);">
+            <strong style="color:var(--text-primary);min-width:80px;display:inline-block;">Hospital:</strong>
+            hospital_1 / Hospital@1234
+          </span>
+          <span style="font-size:0.78rem;color:var(--text-muted);">
+            <strong style="color:var(--text-primary);min-width:80px;display:inline-block;">Blood Bank:</strong>
+            bloodbank_1 / BloodBank@1234
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  function togglePwd() {
+    const inp = document.getElementById('password');
+    const eye = document.getElementById('pwd-eye');
+    if (inp.type==='password'){inp.type='text';eye.className='fa-solid fa-eye-slash';}
+    else{inp.type='password';eye.className='fa-solid fa-eye';}
+  }
+</script>
+</body>
+</html>

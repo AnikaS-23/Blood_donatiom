@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{% block title %}Blood Portal{% endblock %} – BloodConnect</title>
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+    crossorigin="anonymous" referrerpolicy="no-referrer"/>
+
+  <!-- Main CSS -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}"/>
+
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════
+     SIDEBAR
+══════════════════════════════════════════════════════════ -->
+<aside class="sidebar" id="sidebar" role="navigation" aria-label="Main navigation">
+
+  <!-- Logo -->
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-icon">🩸</div>
+    <div class="sidebar-logo-text">
+      <strong>BloodConnect</strong>
+      <span>Emergency Portal</span>
+    </div>
+  </div>
+
+  <!-- User info -->
+  {% if current_user.is_authenticated %}
+  <div class="sidebar-user">
+    <div class="sidebar-user-name">
+      <i class="fa-solid fa-circle-user" style="margin-right:6px;opacity:0.6;"></i>
+      {{ current_user.username }}
+    </div>
+    <div class="sidebar-user-entity">
+      {% if current_user.role == 'hospital' %}
+        <i class="fa-solid fa-hospital" style="margin-right:4px;"></i>Hospital Account
+      {% elif current_user.role == 'bloodbank' %}
+        <i class="fa-solid fa-droplet" style="margin-right:4px;"></i>Blood Bank Account
+      {% else %}
+        <i class="fa-solid fa-shield-halved" style="margin-right:4px;"></i>Administrator
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Navigation Links -->
+  <nav class="sidebar-nav">
+    {% if current_user.is_authenticated %}
+
+      {% if current_user.role == 'hospital' %}
+        <div class="sidebar-section-label">Hospital</div>
+        <a href="{{ url_for('hospital.dashboard') }}"
+           class="sidebar-link {% if request.endpoint == 'hospital.dashboard' %}active{% endif %}">
+          <i class="fa-solid fa-gauge-high"></i> Dashboard
+        </a>
+        <a href="{{ url_for('hospital.requests') }}"
+           class="sidebar-link {% if request.endpoint == 'hospital.requests' %}active{% endif %}">
+          <i class="fa-solid fa-syringe"></i> My Requests
+        </a>
+        <a href="{{ url_for('hospital.blood_banks') }}"
+           class="sidebar-link {% if request.endpoint == 'hospital.blood_banks' %}active{% endif %}">
+          <i class="fa-solid fa-location-dot"></i> Find Blood Banks
+        </a>
+        <a href="{{ url_for('hospital.notifications') }}"
+           class="sidebar-link {% if request.endpoint == 'hospital.notifications' %}active{% endif %}">
+          <i class="fa-solid fa-bell"></i> Notifications
+          {% if unread_count is defined and unread_count > 0 %}
+            <span class="badge-count">{{ unread_count }}</span>
+          {% endif %}
+        </a>
+
+      {% elif current_user.role == 'bloodbank' %}
+        <div class="sidebar-section-label">Blood Bank</div>
+        <a href="{{ url_for('bloodbank.dashboard') }}"
+           class="sidebar-link {% if request.endpoint == 'bloodbank.dashboard' %}active{% endif %}">
+          <i class="fa-solid fa-gauge-high"></i> Dashboard
+        </a>
+        <a href="{{ url_for('bloodbank.inventory') }}"
+           class="sidebar-link {% if request.endpoint == 'bloodbank.inventory' %}active{% endif %}">
+          <i class="fa-solid fa-vials"></i> Inventory
+        </a>
+        <a href="{{ url_for('bloodbank.emergency') }}"
+           class="sidebar-link {% if request.endpoint == 'bloodbank.emergency' %}active{% endif %}">
+          <i class="fa-solid fa-truck-medical"></i> Emergency Requests
+          {% if active_emergencies is defined and active_emergencies > 0 %}
+            <span class="badge-count">{{ active_emergencies }}</span>
+          {% endif %}
+        </a>
+        <a href="{{ url_for('bloodbank.analytics') }}"
+           class="sidebar-link {% if request.endpoint == 'bloodbank.analytics' %}active{% endif %}">
+          <i class="fa-solid fa-chart-line"></i> Analytics
+        </a>
+        <a href="{{ url_for('bloodbank.notifications') }}"
+           class="sidebar-link {% if request.endpoint == 'bloodbank.notifications' %}active{% endif %}">
+          <i class="fa-solid fa-bell"></i> Notifications
+          {% if unread_count is defined and unread_count > 0 %}
+            <span class="badge-count">{{ unread_count }}</span>
+          {% endif %}
+        </a>
+        <a href="{{ url_for('bloodbank.settings') }}"
+           class="sidebar-link {% if request.endpoint == 'bloodbank.settings' %}active{% endif %}">
+          <i class="fa-solid fa-gear"></i> Settings
+        </a>
+
+      {% elif current_user.role == 'admin' %}
+        <div class="sidebar-section-label">Administration</div>
+        <a href="{{ url_for('admin.dashboard') }}"
+           class="sidebar-link {% if request.endpoint == 'admin.dashboard' %}active{% endif %}">
+          <i class="fa-solid fa-gauge-high"></i> Dashboard
+        </a>
+        <a href="{{ url_for('admin.hospitals') }}"
+           class="sidebar-link {% if request.endpoint == 'admin.hospitals' %}active{% endif %}">
+          <i class="fa-solid fa-hospital"></i> Hospitals
+        </a>
+        <a href="{{ url_for('admin.blood_banks') }}"
+           class="sidebar-link {% if request.endpoint == 'admin.blood_banks' %}active{% endif %}">
+          <i class="fa-solid fa-droplet"></i> Blood Banks
+        </a>
+        <a href="{{ url_for('admin.users') }}"
+           class="sidebar-link {% if request.endpoint == 'admin.users' %}active{% endif %}">
+          <i class="fa-solid fa-users"></i> Users
+        </a>
+      {% endif %}
+
+    {% endif %}
+  </nav>
+
+  <!-- Emergency indicator (blood bank only, shown when active) -->
+  {% if current_user.is_authenticated and current_user.role == 'bloodbank' %}
+  <div id="sidebar-emergency-indicator" class="sidebar-emergency-indicator"
+       style="display:{% if emergency_notifs is defined and emergency_notifs|length > 0 %}flex{% else %}none{% endif %};"
+       onclick="window.location='/bloodbank/emergency'">
+    <div class="pulse-dot"></div>
+    <span>
+      {{ emergency_notifs|length if emergency_notifs is defined else 0 }}
+      Active Emergency{% if emergency_notifs is defined and emergency_notifs|length != 1 %}ies{% endif %}
+    </span>
+  </div>
+  {% endif %}
+
+  <!-- Sidebar footer -->
+  <div class="sidebar-footer">
+    <a href="{{ url_for('auth.logout') }}" class="sidebar-link">
+      <i class="fa-solid fa-right-from-bracket"></i> Sign Out
+    </a>
+  </div>
+
+</aside>
+
+<!-- ══════════════════════════════════════════════════════════
+     MAIN WRAPPER
+══════════════════════════════════════════════════════════ -->
+<div class="main-wrapper">
+
+  <!-- Top Bar -->
+  <header class="topbar">
+    <div class="topbar-title">{% block topbar_title %}{% endblock %}</div>
+    <div class="topbar-actions">
+      {% block topbar_actions %}
+      {% if current_user.is_authenticated %}
+        <!-- Notifications icon -->
+        <a href="{% if current_user.role == 'hospital' %}{{ url_for('hospital.notifications') }}{% elif current_user.role == 'bloodbank' %}{{ url_for('bloodbank.notifications') }}{% else %}#{% endif %}"
+           class="icon-btn" title="Notifications">
+          <i class="fa-solid fa-bell"></i>
+          {% if unread_count is defined and unread_count > 0 %}
+            <span class="notif-badge" id="notif-badge">{{ unread_count }}</span>
+          {% else %}
+            <span class="notif-badge" id="notif-badge" style="display:none;">0</span>
+          {% endif %}
+        </a>
+      {% endif %}
+      {% endblock %}
+    </div>
+  </header>
+
+  <!-- Emergency banner (blood bank persistent alert) -->
+  {% if current_user.is_authenticated and current_user.role == 'bloodbank' %}
+    {% set active_em = emergency_notifs|length if emergency_notifs is defined else 0 %}
+    <div id="emergency-banner" class="emergency-banner"
+         style="display:{% if active_em > 0 %}flex{% else %}none{% endif %};"
+         onclick="window.location='/bloodbank/emergency'">
+      <div class="pulse-dot"></div>
+      <span>Active Emergency Request{% if active_em != 1 %}s{% endif %}</span>
+      <span class="eb-count">{{ active_em }}</span>
+      <span style="color:var(--text-muted);font-size:0.78rem;flex:1;">
+        — Requires your immediate attention
+      </span>
+      <span class="eb-link">View All <i class="fa-solid fa-arrow-right" style="font-size:0.75rem;"></i></span>
+    </div>
+  {% endif %}
+
+  <!-- Flash Messages -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="flash-container">
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }} {% if category != 'danger' %}auto-dismiss{% endif %}" data-auto>
+          <i class="fa-solid fa-
+            {%- if category == 'success' %}circle-check
+            {%- elif category == 'danger' %}circle-exclamation
+            {%- elif category == 'warning' %}triangle-exclamation
+            {%- else %}circle-info{%- endif %}"></i>
+          {{ message }}
+          <button class="alert-close" type="button"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  {% endwith %}
+
+  <!-- Page Content -->
+  <main class="page-content" role="main">
+    {% block content %}{% endblock %}
+  </main>
+
+</div><!-- /main-wrapper -->
+
+<!-- ══════════════════════════════════════════════════════════
+     SCRIPTS
+══════════════════════════════════════════════════════════ -->
+{% if current_user.is_authenticated %}
+  <!-- SocketIO -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"
+          crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="{{ url_for('static', filename='js/socket-client.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/notifications.js') }}"></script>
+{% endif %}
+
+{% block extra_js %}{% endblock %}
+
+</body>
+</html>

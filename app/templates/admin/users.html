@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}User Accounts{% endblock %}
+{% block topbar_title %}
+  <i class="fa-solid fa-users" style="color:var(--primary);margin-right:8px;"></i>
+  User Accounts
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>All User Accounts</h1>
+  <p>Manage registered users across all roles.</p>
+</div>
+
+<!-- Role breakdown stats -->
+<div class="stat-grid" style="margin-bottom:20px;">
+  {% set admins    = users|selectattr('role','equalto','admin')    |list %}
+  {% set hospitals = users|selectattr('role','equalto','hospital') |list %}
+  {% set banks     = users|selectattr('role','equalto','bloodbank')|list %}
+  <div class="stat-card">
+    <div class="stat-icon red"><i class="fa-solid fa-shield-halved"></i></div>
+    <div class="stat-info">
+      <div class="stat-value">{{ admins|length }}</div>
+      <div class="stat-label">Administrators</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon blue"><i class="fa-solid fa-hospital"></i></div>
+    <div class="stat-info">
+      <div class="stat-value">{{ hospitals|length }}</div>
+      <div class="stat-label">Hospital Accounts</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon green"><i class="fa-solid fa-droplet"></i></div>
+    <div class="stat-info">
+      <div class="stat-value">{{ banks|length }}</div>
+      <div class="stat-label">Blood Bank Accounts</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon yellow"><i class="fa-solid fa-users"></i></div>
+    <div class="stat-info">
+      <div class="stat-value">{{ users|length }}</div>
+      <div class="stat-label">Total Users</div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <i class="fa-solid fa-users" style="color:var(--text-muted);"></i>
+    <h3>All Accounts</h3>
+    <input type="text" id="user-search" placeholder="Search username or email…"
+           oninput="filterUsers(this.value)"
+           class="form-control" style="width:220px;padding:7px 12px;font-size:0.82rem;"/>
+  </div>
+  {% if users %}
+  <div class="table-wrap" style="border:none;border-radius:0;">
+    <table id="users-table">
+      <thead>
+        <tr>
+          <th>#</th><th>Username</th><th>Email</th><th>Role</th>
+          <th>Entity ID</th><th>Active</th><th>Registered</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for user in users %}
+        <tr class="user-row">
+          <td class="text-muted fs-sm">{{ user.id }}</td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div style="width:28px;height:28px;border-radius:50%;
+                          background:{% if user.role == 'admin' %}rgba(139,0,0,0.1){% elif user.role == 'hospital' %}rgba(41,128,185,0.1){% else %}rgba(39,174,96,0.1){% endif %};
+                          display:flex;align-items:center;justify-content:center;
+                          font-size:0.75rem;
+                          color:{% if user.role == 'admin' %}var(--primary){% elif user.role == 'hospital' %}var(--status-info){% else %}var(--status-ok){% endif %};">
+                <i class="fa-solid fa-{% if user.role == 'admin' %}shield-halved{% elif user.role == 'hospital' %}hospital{% else %}droplet{% endif %}"></i>
+              </div>
+              <strong class="fs-sm">{{ user.username }}</strong>
+            </div>
+          </td>
+          <td class="fs-sm text-muted">{{ user.email }}</td>
+          <td>
+            <span class="badge {% if user.role == 'admin' %}badge-critical{% elif user.role == 'hospital' %}badge-matched{% else %}badge-ok{% endif %}">
+              {{ user.role|title }}
+            </span>
+          </td>
+          <td class="text-muted fs-sm">{{ user.entity_id or '—' }}</td>
+          <td>
+            {% if user.is_active %}
+              <span class="badge badge-ok"><span class="badge-dot"></span>Active</span>
+            {% else %}
+              <span class="badge badge-critical"><span class="badge-dot"></span>Disabled</span>
+            {% endif %}
+          </td>
+          <td class="text-muted fs-xs">{{ user.created_at.strftime('%d %b %Y') }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state"><i class="fa-solid fa-users"></i><h4>No Users Found</h4></div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function filterUsers(term) {
+  term = term.toLowerCase();
+  document.querySelectorAll('.user-row').forEach(row => {
+    const text = row.textContent.toLowerCase();
+    row.style.display = text.includes(term) ? '' : 'none';
+  });
+}
+</script>
+{% endblock %}

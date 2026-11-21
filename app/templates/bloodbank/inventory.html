@@ -1,0 +1,764 @@
+{% extends "base.html" %}
+{% block title %}Inventory Management{% endblock %}
+{% block topbar_title %}
+  <i class="fa-solid fa-vials" style="color:var(--primary);margin-right:8px;"></i>
+  Inventory Management
+{% endblock %}
+{% block topbar_actions %}
+  <button onclick="openModal('add-modal')" class="btn btn-primary btn-sm">
+    <i class="fa-solid fa-plus"></i> Add Stock
+  </button>
+  <button onclick="openModal('issue-modal')" class="btn btn-outline btn-sm">
+    <i class="fa-solid fa-minus"></i> Issue / Discard
+  </button>
+  {{ super() }}
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Blood Inventory – {{ bank.name }}</h1>
+  <p>Manage blood units, track expiry dates, and record all stock movements.</p>
+</div>
+
+<!-- ── Summary Stats ──────────────────────────────────────────── -->
+<div class="stat-grid" style="margin-bottom:20px;">
+  <div class="stat-card">
+    <div class="stat-icon red"><i class="fa-solid fa-droplet"></i></div>
+    <div class="stat-info">
+      <div class="stat-value">{{ total_units }}</div>
+      <div class="stat-label">Total Units</div>
+      <div class="stat-sub">All blood groups & components</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon yellow"><i class="fa-solid fa-triangle-exclamation"></i></div>
+    <div class="stat-info">
+      <div class="stat-value">{{ low_stock_count }}</div>
+      <div class="stat-label">Low / Critical</div>
+      <div class="stat-sub">Items at or below threshold</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon orange"><i class="fa-solid fa-calendar-xmark"></i></div>
+    <div class="stat-info">
+      <div class="stat-value">{{ expiring_soon|length }}</div>
+      <div class="stat-label">Expiring ≤ 7 Days</div>
+      <div class="stat-sub">Need immediate attention</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon red"><i class="fa-solid fa-ban"></i></div>
+    <div class="stat-info">
+      <div class="stat-value">{{ expired|length }}</div>
+      <div class="stat-label">Expired</div>
+      <div class="stat-sub">Must be discarded</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Expiry Alerts Banner ───────────────────────────────────── -->
+{% if expiring_soon or expired %}
+<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px;">
+  {% if expired %}
+  <div class="alert alert-danger" style="margin:0;">
+    <i class="fa-solid fa-circle-exclamation"></i>
+    <strong>{{ expired|length }} item(s) have EXPIRED</strong> and should be discarded immediately.
+    <button class="alert-close" type="button" onclick="this.parentElement.remove()">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
+  </div>
+  {% endif %}
+  {% if expiring_soon %}
+  <div class="alert alert-warning" style="margin:0;">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <strong>{{ expiring_soon|length }} item(s)</strong> are expiring within 7 days.
+    <a href="#expiry-section" style="font-weight:600;margin-left:8px;">View Details →</a>
+    <button class="alert-close" type="button" onclick="this.parentElement.remove()">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- ── Filter Bar ─────────────────────────────────────────────── -->
+<div class="card" style="margin-bottom:16px;">
+  <div class="card-body" style="padding:14px 20px;">
+    <form method="GET" action="{{ url_for('bloodbank.inventory') }}"
+          style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
+      <div style="flex:1;min-width:140px;">
+        <label class="form-label" style="margin-bottom:4px;">Blood Group</label>
+        <select name="bg" class="form-control" style="padding:8px 10px;">
+          <option value="">All Groups</option>
+          {% for bg in blood_groups %}
+          <option value="{{ bg }}" {% if filter_bg == bg %}selected{% endif %}>{{ bg }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div style="flex:2;min-width:180px;">
+        <label class="form-label" style="margin-bottom:4px;">Component</label>
+        <select name="comp" class="form-control" style="padding:8px 10px;">
+          <option value="">All Components</option>
+          {% for c in components %}
+          <option value="{{ c }}" {% if filter_comp == c %}selected{% endif %}>{{ c }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div style="min-width:140px;">
+        <label class="form-label" style="margin-bottom:4px;">Status</label>
+        <select name="status" class="form-control" style="padding:8px 10px;">
+          <option value="">All Status</option>
+          <option value="ok"       {% if filter_status == 'ok'       %}selected{% endif %}>OK</option>
+          <option value="low"      {% if filter_status == 'low'      %}selected{% endif %}>Low</option>
+          <option value="critical" {% if filter_status == 'critical' %}selected{% endif %}>Critical</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button type="submit" class="btn btn-primary btn-sm" style="padding:9px 16px;">
+          <i class="fa-solid fa-filter"></i> Filter
+        </button>
+        {% if filter_bg or filter_comp or filter_status %}
+        <a href="{{ url_for('bloodbank.inventory') }}" class="btn btn-ghost btn-sm" style="padding:9px 14px;">
+          <i class="fa-solid fa-xmark"></i> Clear
+        </a>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ── Main Inventory Table ────────────────────────────────────── -->
+<div class="card" style="margin-bottom:24px;">
+  <div class="card-header">
+    <i class="fa-solid fa-table" style="color:var(--text-muted);"></i>
+    <h3>Inventory Records
+      <span style="font-weight:400;font-size:0.8rem;color:var(--text-muted);margin-left:8px;">
+        {{ inventory|length }} item(s)
+      </span>
+    </h3>
+    <div style="display:flex;gap:8px;">
+      <input type="text" id="inv-search" placeholder="Search…" oninput="filterTable(this.value)"
+             class="form-control" style="width:200px;padding:7px 12px;font-size:0.82rem;"/>
+    </div>
+  </div>
+  {% if inventory %}
+  <div class="table-wrap" style="border:none;border-radius:0;">
+    <table id="inv-table">
+      <thead>
+        <tr>
+          <th>Blood Group</th>
+          <th>Component</th>
+          <th>Available Units</th>
+          <th>Reserved</th>
+          <th>Effective</th>
+          <th>Expiry Date</th>
+          <th>Days Left</th>
+          <th>Alert Threshold</th>
+          <th>Status</th>
+          <th>Last Updated</th>
+          <th style="text-align:center;">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in inventory %}
+        {% set days_left = (item.expiry_date - today).days if item.expiry_date else None %}
+        <tr class="inv-row" data-id="{{ item.id }}"
+            data-bg="{{ item.blood_group }}"
+            data-comp="{{ item.component }}">
+          <td>
+            <strong style="color:var(--primary);font-size:1.05rem;">{{ item.blood_group }}</strong>
+          </td>
+          <td class="fs-sm">{{ item.component }}</td>
+
+          <!-- Inline editable units -->
+          <td>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <input type="number"
+                     class="form-control units-input"
+                     data-id="{{ item.id }}"
+                     value="{{ item.units_available }}"
+                     min="0" max="9999"
+                     style="width:70px;padding:5px 8px;text-align:center;font-weight:600;"
+                     onchange="quickUpdate(this)"
+                     title="Click to edit"/>
+              <span class="save-indicator-{{ item.id }}" style="display:none;color:var(--status-ok);font-size:0.8rem;">
+                <i class="fa-solid fa-check"></i>
+              </span>
+            </div>
+          </td>
+
+          <td class="fs-sm text-muted">{{ item.units_reserved }}</td>
+
+          <td>
+            <strong {% if item.effective_units == 0 %}style="color:var(--status-critical);"
+                    {% elif item.effective_units <= 5 %}style="color:var(--status-warn);"
+                    {% else %}style="color:var(--status-ok);"{% endif %}>
+              {{ item.effective_units }}
+            </strong>
+          </td>
+
+          <td class="fs-sm">
+            {% if item.expiry_date %}
+              <span {% if days_left is not none and days_left < 0 %}style="color:var(--status-critical);font-weight:600;"
+                    {% elif days_left is not none and days_left <= 7 %}style="color:var(--status-warn);font-weight:600;"
+                    {% endif %}>
+                {{ item.expiry_date.strftime('%d %b %Y') }}
+              </span>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+
+          <td>
+            {% if days_left is not none %}
+              {% if days_left < 0 %}
+                <span class="badge badge-critical"><span class="badge-dot"></span>Expired</span>
+              {% elif days_left == 0 %}
+                <span class="badge badge-critical"><span class="badge-dot"></span>Today!</span>
+              {% elif days_left <= 3 %}
+                <span class="badge badge-critical"><span class="badge-dot"></span>{{ days_left }}d</span>
+              {% elif days_left <= 7 %}
+                <span class="badge badge-low"><span class="badge-dot"></span>{{ days_left }}d</span>
+              {% else %}
+                <span class="text-muted fs-xs">{{ days_left }}d</span>
+              {% endif %}
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+
+          <!-- Threshold (inline editable) -->
+          <td>
+            {% set thr = namespace(val=5) %}
+            {% for t in bank.low_stock_thresholds %}
+              {% if t.blood_group == item.blood_group and t.component == item.component %}
+                {% set thr.val = t.threshold_units %}
+              {% endif %}
+            {% endfor %}
+            <input type="number"
+                   class="form-control threshold-input"
+                   data-bg="{{ item.blood_group }}"
+                   data-comp="{{ item.component }}"
+                   value="{{ thr.val }}"
+                   min="0" max="100"
+                   style="width:60px;padding:5px 8px;text-align:center;font-size:0.8rem;"
+                   onchange="updateThreshold(this)"
+                   title="Alert threshold"/>
+          </td>
+
+          <td>
+            <span class="badge badge-{{ item.status_label }}" id="status-{{ item.id }}">
+              <span class="badge-dot"></span>
+              {{ 'OK' if item.status_label == 'ok' else item.status_label|title }}
+            </span>
+          </td>
+
+          <td class="text-muted fs-xs">
+            {{ item.last_updated.strftime('%d %b, %H:%M') if item.last_updated else '—' }}
+          </td>
+
+          <td style="text-align:center;white-space:nowrap;">
+            <button class="btn btn-success btn-sm"
+                    onclick="prefillAdd('{{ item.blood_group }}','{{ item.component }}')"
+                    title="Add more stock">
+              <i class="fa-solid fa-plus"></i>
+            </button>
+            <button class="btn btn-warning btn-sm"
+                    onclick="prefillIssue('{{ item.blood_group }}','{{ item.component }}',{{ item.units_available }})"
+                    title="Issue units">
+              <i class="fa-solid fa-minus"></i>
+            </button>
+            {% if item.expiry_date and (today - item.expiry_date).days > 0 %}
+            <button class="btn btn-danger btn-sm"
+                    onclick="prefillDiscard('{{ item.blood_group }}','{{ item.component }}',{{ item.units_available }})"
+                    title="Discard expired units">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <i class="fa-solid fa-vials"></i>
+    <h4>No Inventory Records</h4>
+    <p>Click <strong>Add Stock</strong> to begin recording blood units.</p>
+    <button onclick="openModal('add-modal')" class="btn btn-primary" style="margin-top:16px;">
+      <i class="fa-solid fa-plus"></i> Add First Record
+    </button>
+  </div>
+  {% endif %}
+</div>
+
+<!-- ── Expiry Tracking Section ────────────────────────────────── -->
+{% if expiring_soon or expired %}
+<div class="card" id="expiry-section" style="margin-bottom:24px;">
+  <div class="card-header">
+    <i class="fa-solid fa-calendar-xmark" style="color:var(--status-warn);"></i>
+    <h3>Expiry Tracking</h3>
+  </div>
+  <div class="table-wrap" style="border:none;border-radius:0;">
+    <table>
+      <thead>
+        <tr>
+          <th>Blood Group</th><th>Component</th><th>Units</th>
+          <th>Expiry Date</th><th>Days Left</th><th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in expired %}
+        {% set days_left = (item.expiry_date - today).days %}
+        <tr style="background:rgba(231,76,60,0.03);">
+          <td><strong style="color:var(--primary);">{{ item.blood_group }}</strong></td>
+          <td class="fs-sm">{{ item.component }}</td>
+          <td><strong style="color:var(--status-critical);">{{ item.units_available }}</strong></td>
+          <td class="fs-sm" style="color:var(--status-critical);font-weight:600;">
+            {{ item.expiry_date.strftime('%d %b %Y') }}
+          </td>
+          <td><span class="badge badge-critical"><span class="badge-dot"></span>Expired {{ days_left|abs }}d ago</span></td>
+          <td>
+            <button class="btn btn-danger btn-sm"
+                    onclick="prefillDiscard('{{ item.blood_group }}','{{ item.component }}',{{ item.units_available }})">
+              <i class="fa-solid fa-trash"></i> Discard
+            </button>
+          </td>
+        </tr>
+        {% endfor %}
+        {% for item in expiring_soon %}
+        {% set days_left = (item.expiry_date - today).days %}
+        <tr style="background:rgba(243,156,18,0.03);">
+          <td><strong style="color:var(--primary);">{{ item.blood_group }}</strong></td>
+          <td class="fs-sm">{{ item.component }}</td>
+          <td><strong>{{ item.units_available }}</strong></td>
+          <td class="fs-sm" style="color:var(--status-warn);font-weight:600;">
+            {{ item.expiry_date.strftime('%d %b %Y') }}
+          </td>
+          <td>
+            <span class="badge {% if days_left <= 3 %}badge-critical{% else %}badge-low{% endif %}">
+              <span class="badge-dot"></span>
+              {{ days_left }}d remaining
+            </span>
+          </td>
+          <td>
+            <button class="btn btn-warning btn-sm"
+                    onclick="prefillIssue('{{ item.blood_group }}','{{ item.component }}',{{ item.units_available }})">
+              <i class="fa-solid fa-minus"></i> Issue First
+            </button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- ── Recent Transaction History ─────────────────────────────── -->
+<div class="card">
+  <div class="card-header">
+    <i class="fa-solid fa-clock-rotate-left" style="color:var(--text-muted);"></i>
+    <h3>Recent Transactions</h3>
+    <span style="font-size:0.78rem;color:var(--text-muted);margin-left:4px;">Last 20</span>
+  </div>
+  {% if recent_txns %}
+  <div class="table-wrap" style="border:none;border-radius:0;">
+    <table>
+      <thead>
+        <tr>
+          <th>Date & Time</th><th>Type</th><th>Blood Group</th>
+          <th>Component</th><th>Units</th><th>Performed By</th><th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for txn in recent_txns %}
+        <tr>
+          <td class="text-muted fs-xs">{{ txn.timestamp.strftime('%d %b %Y, %H:%M') }}</td>
+          <td>
+            {% set txn_colours = {
+              'Donation': 'badge-ok',
+              'Transfer In': 'badge-ok',
+              'Issue': 'badge-matched',
+              'Transfer Out': 'badge-matched',
+              'Discard': 'badge-critical'
+            } %}
+            {% set txn_icons = {
+              'Donation': 'fa-arrow-down',
+              'Transfer In': 'fa-arrow-down',
+              'Issue': 'fa-arrow-up',
+              'Transfer Out': 'fa-arrow-up',
+              'Discard': 'fa-trash'
+            } %}
+            <span class="badge {{ txn_colours.get(txn.transaction_type, 'badge-pending') }}">
+              <i class="fa-solid {{ txn_icons.get(txn.transaction_type, 'fa-circle') }}"
+                 style="font-size:0.65rem;"></i>
+              {{ txn.transaction_type }}
+            </span>
+          </td>
+          <td><strong style="color:var(--primary);">{{ txn.blood_group }}</strong></td>
+          <td class="fs-sm">{{ txn.component }}</td>
+          <td>
+            <strong {% if txn.transaction_type in ('Donation','Transfer In') %}
+                      style="color:var(--status-ok);"
+                    {% else %}
+                      style="color:var(--status-critical);"
+                    {% endif %}>
+              {{ '+' if txn.transaction_type in ('Donation','Transfer In') else '–' }}{{ txn.units }}
+            </strong>
+          </td>
+          <td class="fs-xs text-muted">
+            {{ txn.performed_by_user.username if txn.performed_by_user else '—' }}
+          </td>
+          <td class="fs-xs text-muted">{{ txn.notes[:50] if txn.notes else '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <i class="fa-solid fa-clock-rotate-left"></i>
+    <h4>No Transactions Yet</h4>
+    <p>All stock additions and issue records will appear here.</p>
+  </div>
+  {% endif %}
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     ADD STOCK MODAL
+══════════════════════════════════════════════════════════ -->
+<div id="add-modal" class="modal-overlay" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-header" style="background:linear-gradient(135deg,#27AE60,#1E8449);">
+      <div class="modal-header-icon">📥</div>
+      <div>
+        <h3>Add / Receive Stock</h3>
+        <p>Record incoming blood units (donation, transfer, collection)</p>
+      </div>
+      <button class="modal-close" onclick="closeModal('add-modal')">×</button>
+    </div>
+    <form method="POST" action="{{ url_for('bloodbank.inventory_add') }}" class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Blood Group <span style="color:var(--status-critical);">*</span></label>
+          <select name="blood_group" id="add-bg" class="form-control" required>
+            <option value="">Select group</option>
+            {% for bg in blood_groups %}
+            <option value="{{ bg }}">{{ bg }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Component <span style="color:var(--status-critical);">*</span></label>
+          <select name="component" id="add-comp" class="form-control" required>
+            <option value="">Select component</option>
+            {% for c in components %}
+            <option value="{{ c }}">{{ c }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Units to Add <span style="color:var(--status-critical);">*</span></label>
+          <input type="number" name="units" id="add-units" class="form-control"
+                 min="1" placeholder="e.g. 5" required/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Transaction Type</label>
+          <select name="transaction_type" class="form-control">
+            <option value="Donation">Donation</option>
+            <option value="Transfer In">Transfer In</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Collection Date</label>
+          <input type="date" name="collection_date" class="form-control"
+                 value="{{ today.strftime('%Y-%m-%d') }}"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Expiry Date</label>
+          <input type="date" name="expiry_date" class="form-control"/>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Notes (optional)</label>
+        <textarea name="notes" class="form-control" rows="2"
+                  placeholder="e.g. Blood drive – RR Nagar camp"></textarea>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" onclick="closeModal('add-modal')" class="btn btn-ghost">Cancel</button>
+        <button type="submit" class="btn btn-success">
+          <i class="fa-solid fa-plus"></i> Add Stock
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     ISSUE / DISCARD MODAL
+══════════════════════════════════════════════════════════ -->
+<div id="issue-modal" class="modal-overlay" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-header" style="background:linear-gradient(135deg,#E67E22,#CA6F1E);">
+      <div class="modal-header-icon">📤</div>
+      <div>
+        <h3 id="issue-modal-title">Issue / Distribute Units</h3>
+        <p>Record units issued to patients or other facilities</p>
+      </div>
+      <button class="modal-close" onclick="closeModal('issue-modal')">×</button>
+    </div>
+    <form method="POST" action="{{ url_for('bloodbank.inventory_issue') }}" class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Blood Group <span style="color:var(--status-critical);">*</span></label>
+          <select name="blood_group" id="issue-bg" class="form-control" required>
+            <option value="">Select group</option>
+            {% for bg in blood_groups %}
+            <option value="{{ bg }}">{{ bg }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Component <span style="color:var(--status-critical);">*</span></label>
+          <select name="component" id="issue-comp" class="form-control" required>
+            <option value="">Select component</option>
+            {% for c in components %}
+            <option value="{{ c }}">{{ c }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Units to Deduct <span style="color:var(--status-critical);">*</span></label>
+          <input type="number" name="units" id="issue-units" class="form-control"
+                 min="1" placeholder="e.g. 2" required/>
+          <p id="issue-avail-hint" class="fs-xs text-muted" style="margin-top:4px;"></p>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Transaction Type</label>
+          <select name="transaction_type" id="issue-type" class="form-control">
+            <option value="Issue">Issue (Patient)</option>
+            <option value="Transfer Out">Transfer Out</option>
+            <option value="Discard">Discard (Expired/Damaged)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Reference / Request ID (optional)</label>
+        <input type="text" name="reference_id" class="form-control"
+               placeholder="Emergency request ID, if applicable"/>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Notes (optional)</label>
+        <textarea name="notes" class="form-control" rows="2"
+                  placeholder="e.g. Issued to City General Hospital – ICU"></textarea>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" onclick="closeModal('issue-modal')" class="btn btn-ghost">Cancel</button>
+        <button type="submit" class="btn btn-warning">
+          <i class="fa-solid fa-minus"></i> Record Deduction
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Modal styles */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 9000;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 48px;
+  overflow-y: auto;
+}
+.modal-overlay.flex { display: flex !important; }
+.modal-box {
+  background: #fff;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  width: 560px; max-width: 95vw;
+  overflow: hidden;
+  animation: slideUp 0.25s ease;
+  margin-bottom: 48px;
+}
+.modal-header {
+  padding: 18px 24px;
+  display: flex; align-items: center; gap: 12px;
+}
+.modal-header-icon {
+  width: 40px; height: 40px;
+  background: rgba(255,255,255,0.15);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.1rem;
+}
+.modal-header h3 { color: #fff; font-size: 1rem; }
+.modal-header p  { color: rgba(255,255,255,0.75); font-size: 0.78rem; }
+.modal-close {
+  margin-left: auto; background: none; border: none;
+  color: rgba(255,255,255,0.8); cursor: pointer;
+  font-size: 1.5rem; padding: 4px; line-height: 1;
+}
+.modal-close:hover { color: #fff; }
+.modal-body { padding: 24px; }
+.modal-footer {
+  padding: 14px 24px;
+  background: var(--bg-main);
+  border-top: 1px solid var(--border-light);
+  display: flex; gap: 10px; justify-content: flex-end;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+/* ── Modal open / close ─────────────────────────────────── */
+function openModal(id) {
+  const el = document.getElementById(id);
+  el.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+function closeModal(id) {
+  document.getElementById(id).style.display = 'none';
+  document.body.style.overflow = '';
+}
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', function(e) {
+    if (e.target === this) closeModal(this.id);
+  });
+});
+
+/* ── Prefill Add modal ──────────────────────────────────── */
+function prefillAdd(bg, comp) {
+  document.getElementById('add-bg').value   = bg;
+  document.getElementById('add-comp').value = comp;
+  openModal('add-modal');
+}
+
+/* ── Prefill Issue modal ────────────────────────────────── */
+function prefillIssue(bg, comp, maxUnits) {
+  document.getElementById('issue-modal-title').textContent = 'Issue / Distribute Units';
+  document.getElementById('issue-bg').value     = bg;
+  document.getElementById('issue-comp').value   = comp;
+  document.getElementById('issue-units').max    = maxUnits;
+  document.getElementById('issue-type').value   = 'Issue';
+  document.getElementById('issue-avail-hint').textContent =
+    `Available: ${maxUnits} unit(s)`;
+  openModal('issue-modal');
+}
+
+/* ── Prefill Discard modal ──────────────────────────────── */
+function prefillDiscard(bg, comp, maxUnits) {
+  document.getElementById('issue-modal-title').textContent = 'Discard Expired / Damaged Units';
+  document.getElementById('issue-bg').value     = bg;
+  document.getElementById('issue-comp').value   = comp;
+  document.getElementById('issue-units').max    = maxUnits;
+  document.getElementById('issue-units').value  = maxUnits;
+  document.getElementById('issue-type').value   = 'Discard';
+  document.getElementById('issue-avail-hint').textContent =
+    `Available: ${maxUnits} unit(s)`;
+  openModal('issue-modal');
+}
+
+/* ── Quick inline units update ──────────────────────────── */
+let debounceTimers = {};
+function quickUpdate(input) {
+  const id    = input.dataset.id;
+  const value = parseInt(input.value);
+  if (isNaN(value) || value < 0) return;
+
+  clearTimeout(debounceTimers[id]);
+  debounceTimers[id] = setTimeout(async () => {
+    try {
+      const res = await fetch('{{ url_for("bloodbank.inventory_quick_update") }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: id, units_available: value })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        // Update status badge
+        const badge = document.getElementById(`status-${id}`);
+        if (badge) {
+          const labels = { ok: 'OK', low: 'Low', critical: 'Critical' };
+          const classes = { ok: 'badge-ok', low: 'badge-low', critical: 'badge-critical' };
+          badge.className = `badge ${classes[data.status]}`;
+          badge.innerHTML = `<span class="badge-dot"></span>${labels[data.status]}`;
+        }
+        // Flash save indicator
+        const ind = document.querySelector(`.save-indicator-${id}`);
+        if (ind) {
+          ind.style.display = 'inline';
+          setTimeout(() => ind.style.display = 'none', 1500);
+        }
+        // Toast
+        window.showToast('success', 'Inventory Updated',
+          `Stock for this item saved: ${value} units.`, 2500);
+      }
+    } catch(e) { console.error(e); }
+  }, 600); // 600ms debounce
+}
+
+/* ── Update alert threshold ─────────────────────────────── */
+let threshDebounce = {};
+function updateThreshold(input) {
+  const key = `${input.dataset.bg}__${input.dataset.comp}`;
+  clearTimeout(threshDebounce[key]);
+  threshDebounce[key] = setTimeout(async () => {
+    await fetch('{{ url_for("bloodbank.update_threshold") }}', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        blood_group: input.dataset.bg,
+        component: input.dataset.comp,
+        threshold: parseInt(input.value)
+      })
+    });
+    window.showToast('info', 'Threshold Updated',
+      `Alert threshold for ${input.dataset.bg} saved.`, 2000);
+  }, 600);
+}
+
+/* ── Live table search ──────────────────────────────────── */
+function filterTable(term) {
+  term = term.toLowerCase();
+  document.querySelectorAll('.inv-row').forEach(row => {
+    const bg   = row.dataset.bg.toLowerCase();
+    const comp = row.dataset.comp.toLowerCase();
+    row.style.display = (bg.includes(term) || comp.includes(term)) ? '' : 'none';
+  });
+}
+
+/* ── Auto-open modal if flash said success on add ───────── */
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in messages %}
+    {% if cat == 'danger' and 'Insufficient' in msg %}
+      window.addEventListener('DOMContentLoaded', () => openModal('issue-modal'));
+    {% endif %}
+  {% endfor %}
+{% endwith %}
+</script>
+{% endblock %}

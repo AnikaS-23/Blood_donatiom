@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Analytics & Predictions{% endblock %}
+{% block topbar_title %}
+  <i class="fa-solid fa-chart-line" style="color:var(--primary);margin-right:8px;"></i>
+  Analytics & Shortage Prediction
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Inventory Analytics</h1>
+  <p>Historical demand trends and AI-powered shortage predictions for {{ bank.name }}.</p>
+</div>
+
+<div class="card">
+  <div class="card-body" style="text-align:center;padding:60px 24px;">
+    <div style="font-size:3rem;margin-bottom:16px;">📊</div>
+    <h2 style="margin-bottom:10px;">Analytics Coming in Phase 6</h2>
+    <p style="max-width:480px;margin:0 auto 20px;color:var(--text-muted);">
+      This module will show historical blood usage trends, demand forecasts
+      using scikit-learn, and predicted shortage alerts — all as interactive Plotly charts.
+    </p>
+    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+      <div style="padding:14px 20px;background:var(--bg-main);border-radius:var(--radius-md);
+                  border:1px solid var(--border);text-align:center;min-width:140px;">
+        <i class="fa-solid fa-chart-area" style="font-size:1.5rem;color:var(--primary);margin-bottom:8px;display:block;"></i>
+        <div class="fs-sm fw-600">Demand Trends</div>
+        <div class="fs-xs text-muted">12-month history</div>
+      </div>
+      <div style="padding:14px 20px;background:var(--bg-main);border-radius:var(--radius-md);
+                  border:1px solid var(--border);text-align:center;min-width:140px;">
+        <i class="fa-solid fa-wand-magic-sparkles" style="font-size:1.5rem;color:var(--status-warn);margin-bottom:8px;display:block;"></i>
+        <div class="fs-sm fw-600">Shortage Forecast</div>
+        <div class="fs-xs text-muted">30/60/90 day outlook</div>
+      </div>
+      <div style="padding:14px 20px;background:var(--bg-main);border-radius:var(--radius-md);
+                  border:1px solid var(--border);text-align:center;min-width:140px;">
+        <i class="fa-solid fa-chart-pie" style="font-size:1.5rem;color:var(--status-ok);margin-bottom:8px;display:block;"></i>
+        <div class="fs-sm fw-600">Component Mix</div>
+        <div class="fs-xs text-muted">Usage breakdown</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

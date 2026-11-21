@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Manage Hospitals{% endblock %}
+{% block topbar_title %}
+  <i class="fa-solid fa-hospital" style="color:var(--primary);margin-right:8px;"></i>
+  Manage Hospitals
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Registered Hospitals</h1>
+  <p>All hospitals in the BloodConnect network. Verify institutions before they can submit requests.</p>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <i class="fa-solid fa-hospital" style="color:var(--text-muted);"></i>
+    <h3>Hospitals <span style="font-weight:400;font-size:0.8rem;color:var(--text-muted);margin-left:6px;">
+      {{ hospitals|length }} registered
+    </span></h3>
+  </div>
+  {% if hospitals %}
+  <div class="table-wrap" style="border:none;border-radius:0;">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th><th>Name</th><th>City</th><th>Contact</th>
+          <th>Reg. Number</th><th>Verified</th><th>Registered</th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for h in hospitals %}
+        <tr>
+          <td class="text-muted fs-sm">{{ h.id }}</td>
+          <td>
+            <strong class="fs-sm">{{ h.name }}</strong>
+            <div class="fs-xs text-muted">{{ h.address }}</div>
+          </td>
+          <td class="fs-sm">{{ h.city }}, {{ h.state }}</td>
+          <td class="fs-xs text-muted">
+            {{ h.contact_phone or '—' }}<br/>{{ h.contact_email or '' }}
+          </td>
+          <td class="fs-xs text-muted">{{ h.registration_number }}</td>
+          <td>
+            {% if h.is_verified %}
+              <span class="badge badge-ok"><span class="badge-dot"></span>Verified</span>
+            {% else %}
+              <span class="badge badge-pending"><span class="badge-dot"></span>Pending</span>
+            {% endif %}
+          </td>
+          <td class="text-muted fs-xs">{{ h.created_at.strftime('%d %b %Y') }}</td>
+          <td>
+            <form method="POST" action="/admin/hospitals/{{ h.id }}/toggle" style="display:inline;">
+              <button class="btn btn-sm {% if h.is_verified %}btn-ghost{% else %}btn-success{% endif %}">
+                {% if h.is_verified %}
+                  <i class="fa-solid fa-ban"></i>
+                {% else %}
+                  <i class="fa-solid fa-check"></i> Verify
+                {% endif %}
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <i class="fa-solid fa-hospital"></i>
+    <h4>No Hospitals Registered</h4>
+    <p>Hospitals will appear here after they register through the portal.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

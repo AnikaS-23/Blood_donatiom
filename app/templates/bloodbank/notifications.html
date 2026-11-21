@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Notifications{% endblock %}
+{% block topbar_title %}
+  <i class="fa-solid fa-bell" style="color:var(--primary);margin-right:8px;"></i>
+  Notifications
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>All Notifications</h1>
+  <p>Emergency alerts, low stock warnings, expiry notices, and system messages.</p>
+</div>
+
+{% set type_filter = request.args.get('type','') %}
+
+<!-- Filter tabs -->
+<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+  {% for label, val, icon in [
+    ('All','','fa-bell'),
+    ('Emergency','Emergency','fa-siren-on'),
+    ('Low Stock','Low Stock','fa-triangle-exclamation'),
+    ('Expiry','Expiry','fa-calendar-xmark'),
+    ('Responses','Response','fa-reply'),
+    ('System','System','fa-gear')
+  ] %}
+  <a href="?type={{ val }}" class="btn {% if type_filter == val %}btn-primary{% else %}btn-ghost{% endif %} btn-sm">
+    <i class="fa-solid {{ icon }}"></i> {{ label }}
+    {% if val %}
+      {% set count = notifications|selectattr('type','equalto',val)|list|length %}
+      {% if count %}<span style="margin-left:4px;background:rgba(255,255,255,0.3);
+        padding:0 5px;border-radius:8px;font-size:0.7rem;">{{ count }}</span>{% endif %}
+    {% endif %}
+  </a>
+  {% endfor %}
+</div>
+
+<div class="card">
+  {% set filtered = notifications if not type_filter else notifications|selectattr('type','equalto',type_filter)|list %}
+  {% if filtered %}
+    {% for notif in filtered %}
+    {% set icon_map = {
+      'Emergency':  ('fa-siren-on', 'emergency'),
+      'Low Stock':  ('fa-triangle-exclamation', 'low-stock'),
+      'Expiry':     ('fa-calendar-xmark', 'expiry'),
+      'Response':   ('fa-reply', 'response'),
+      'System':     ('fa-gear', 'system')
+    } %}
+    {% set icon_data = icon_map.get(notif.type, ('fa-bell','system')) %}
+    <div class="notif-item {% if not notif.is_read %}unread{% endif %}"
+         {% if notif.reference_id and notif.type == 'Emergency' %}
+         onclick="window.location='/bloodbank/emergency/{{ notif.reference_id }}'"
+         style="cursor:pointer;"
+         {% endif %}>
+      <div class="notif-icon {{ icon_data[1] }}">
+        <i class="fa-solid {{ icon_data[0] }}"></i>
+      </div>
+      <div style="flex:1;min-width:0;">
+        <div class="notif-title">{{ notif.title }}</div>
+        <div class="notif-message">{{ notif.message }}</div>
+        <div class="notif-time">
+          <i class="fa-solid fa-clock" style="margin-right:3px;font-size:0.65rem;"></i>
+          {{ notif.created_at.strftime('%d %b %Y, %H:%M') }}
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0;">
+        {% if not notif.is_read %}
+          <span class="badge badge-critical" style="font-size:0.65rem;">New</span>
+        {% endif %}
+        {% if notif.type == 'Emergency' and notif.reference_id %}
+          <a href="/bloodbank/emergency/{{ notif.reference_id }}"
+             class="btn btn-primary btn-sm" onclick="event.stopPropagation()">
+            Respond
+          </a>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  {% else %}
+  <div class="empty-state">
+    <i class="fa-solid fa-bell-slash"></i>
+    <h4>No Notifications</h4>
+    <p>You're all caught up! Alerts and updates will appear here.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

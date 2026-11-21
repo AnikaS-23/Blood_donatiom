@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Register – BloodConnect</title>
+  <link rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+    crossorigin="anonymous"/>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}"/>
+  <style>body { background: #fff; }</style>
+</head>
+<body>
+<div class="auth-page">
+
+  <div class="auth-left">
+    <div class="auth-left-content">
+      <div class="auth-brand-icon">🩸</div>
+      <h1>Join BloodConnect</h1>
+      <p>Register your hospital or blood bank to start coordinating emergency blood supply in your city.</p>
+      <div class="auth-features">
+        <div class="auth-feature"><i class="fa-solid fa-hospital"></i> Hospital accounts – submit requests</div>
+        <div class="auth-feature"><i class="fa-solid fa-droplet"></i> Blood Bank accounts – manage inventory</div>
+        <div class="auth-feature"><i class="fa-solid fa-shield-halved"></i> Secure, role-based access</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="auth-right" style="padding:32px 40px;">
+    <div class="auth-form-box" style="max-width:420px;">
+      <h2>Create Account</h2>
+      <p class="auth-subtitle">Register your institution to get started</p>
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}{% for category, message in messages %}
+          <div class="alert alert-{{ category }}" style="margin-bottom:14px;">
+            <i class="fa-solid fa-circle-exclamation"></i> {{ message }}
+          </div>
+        {% endfor %}{% endif %}
+      {% endwith %}
+
+      <!-- Role tabs -->
+      <div class="role-tabs" id="role-tabs">
+        <button type="button" class="role-tab active" onclick="switchRole('hospital')">
+          <i class="fa-solid fa-hospital"></i> Hospital
+        </button>
+        <button type="button" class="role-tab" onclick="switchRole('bloodbank')">
+          <i class="fa-solid fa-droplet"></i> Blood Bank
+        </button>
+      </div>
+
+      <form method="POST" action="{{ url_for('auth.register') }}" novalidate>
+        <input type="hidden" name="role" id="role-input" value="hospital"/>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Username</label>
+            <input type="text" name="username" class="form-control" placeholder="Username" required/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input type="email" name="email" class="form-control" placeholder="Email address" required/>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input type="password" name="password" class="form-control" placeholder="Create a password" required/>
+        </div>
+
+        <!-- Entity selector: Hospital -->
+        <div class="form-group" id="hospital-select">
+          <label class="form-label">Select Your Hospital</label>
+          <select name="entity_id" class="form-control" id="hospital-entity">
+            <option value="">— Choose hospital —</option>
+            {% for h in hospitals %}
+              <option value="{{ h.id }}">{{ h.name }} – {{ h.city }}</option>
+            {% endfor %}
+          </select>
+          <p style="font-size:0.75rem;color:var(--text-muted);margin-top:5px;">
+            Only verified hospitals are listed. Contact admin if yours isn't here.
+          </p>
+        </div>
+
+        <!-- Entity selector: Blood Bank -->
+        <div class="form-group" id="bloodbank-select" style="display:none;">
+          <label class="form-label">Select Your Blood Bank</label>
+          <select name="entity_id" class="form-control" id="bloodbank-entity">
+            <option value="">— Choose blood bank —</option>
+            {% for b in blood_banks %}
+              <option value="{{ b.id }}">{{ b.name }} – {{ b.city }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <button type="submit" class="btn btn-primary w-100" style="margin-top:8px;padding:12px;">
+          <i class="fa-solid fa-user-plus"></i> Create Account
+        </button>
+      </form>
+
+      <div class="divider"></div>
+      <p style="text-align:center;font-size:0.85rem;color:var(--text-muted);">
+        Already have an account? <a href="{{ url_for('auth.login') }}" style="font-weight:600;">Sign in</a>
+      </p>
+    </div>
+  </div>
+
+</div>
+<script>
+  function switchRole(role) {
+    document.getElementById('role-input').value = role;
+    document.querySelectorAll('.role-tab').forEach(t => t.classList.remove('active'));
+    event.target.closest('.role-tab').classList.add('active');
+    if (role === 'hospital') {
+      document.getElementById('hospital-select').style.display = '';
+      document.getElementById('bloodbank-select').style.display = 'none';
+      document.getElementById('hospital-entity').name = 'entity_id';
+      document.getElementById('bloodbank-entity').name = '_entity_id_bb';
+    } else {
+      document.getElementById('hospital-select').style.display = 'none';
+      document.getElementById('bloodbank-select').style.display = '';
+      document.getElementById('bloodbank-entity').name = 'entity_id';
+      document.getElementById('hospital-entity').name = '_entity_id_h';
+    }
+  }
+</script>
+</body>
+</html>

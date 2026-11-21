@@ -1,0 +1,383 @@
+{% extends "base.html" %}
+{% block title %}Emergency Request #{{ req.id }}{% endblock %}
+{% block topbar_title %}
+  <i class="fa-solid fa-truck-medical" style="color:var(--status-critical);margin-right:8px;"></i>
+  Emergency Request #{{ req.id }}
+{% endblock %}
+{% block topbar_actions %}
+  <a href="{{ url_for('bloodbank.emergency') }}" class="btn btn-ghost btn-sm">
+    <i class="fa-solid fa-arrow-left"></i> Back to Requests
+  </a>
+  {{ super() }}
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Emergency Request Details</h1>
+  <p>Review the request and submit your response after physically verifying your stock.</p>
+</div>
+
+<div class="grid-2">
+
+  <!-- ── Request Info ─────────────────────────────────────── -->
+  <div style="display:flex;flex-direction:column;gap:16px;">
+
+    <div class="card">
+      <div class="card-header"
+           style="background:linear-gradient(135deg,#8B0000,#C0392B);border-radius:var(--radius-md) var(--radius-md) 0 0;">
+        <div style="width:36px;height:36px;background:rgba(255,255,255,0.15);border-radius:50%;
+                    display:flex;align-items:center;justify-content:center;font-size:1.1rem;">🚨</div>
+        <h3 style="color:#fff;">Request Information</h3>
+        <span class="badge badge-{{ req.urgency_level|lower }}" style="margin-left:auto;">
+          {{ req.urgency_level }}
+        </span>
+      </div>
+      <div class="card-body">
+        <div style="display:flex;flex-direction:column;gap:14px;">
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+            <div>
+              <p class="fs-xs text-muted fw-600" style="text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Blood Group</p>
+              <p style="font-size:1.8rem;font-weight:800;color:var(--primary);line-height:1;">{{ req.blood_group }}</p>
+            </div>
+            <div>
+              <p class="fs-xs text-muted fw-600" style="text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Units Required</p>
+              <p style="font-size:1.8rem;font-weight:800;color:var(--text-primary);line-height:1;">{{ req.units_required }}</p>
+            </div>
+          </div>
+
+          <div class="divider" style="margin:4px 0;"></div>
+
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <div class="d-flex justify-between fs-sm">
+              <span class="text-muted">Component</span>
+              <strong>{{ req.component }}</strong>
+            </div>
+            <div class="d-flex justify-between fs-sm">
+              <span class="text-muted">Requesting Hospital</span>
+              <strong>{{ req.hospital.name }}</strong>
+            </div>
+            <div class="d-flex justify-between fs-sm">
+              <span class="text-muted">Hospital Location</span>
+              <strong>{{ req.hospital.city }}, {{ req.hospital.state }}</strong>
+            </div>
+            <div class="d-flex justify-between fs-sm">
+              <span class="text-muted">Required By</span>
+              <strong>{{ req.required_by_time.strftime('%d %b %Y, %H:%M') if req.required_by_time else 'ASAP' }}</strong>
+            </div>
+            <div class="d-flex justify-between fs-sm">
+              <span class="text-muted">Request Status</span>
+              <span class="badge badge-{{ req.status|lower }}">{{ req.status }}</span>
+            </div>
+            <div class="d-flex justify-between fs-sm">
+              <span class="text-muted">Submitted At</span>
+              <strong>{{ req.created_at.strftime('%d %b %Y, %H:%M') }}</strong>
+            </div>
+            {% if req.patient_info %}
+            <div class="d-flex justify-between fs-sm">
+              <span class="text-muted">Patient Info</span>
+              <strong>{{ req.patient_info }}</strong>
+            </div>
+            {% endif %}
+          </div>
+
+          {% if req.additional_notes %}
+          <div style="padding:12px;background:var(--bg-main);border-radius:var(--radius-sm);
+                      border:1px solid var(--border);margin-top:4px;">
+            <p class="fs-xs text-muted fw-600" style="margin-bottom:4px;">Additional Notes</p>
+            <p class="fs-sm">{{ req.additional_notes }}</p>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Your Inventory Match ─────────────────────────────── -->
+    <div class="card">
+      <div class="card-header">
+        <i class="fa-solid fa-vials" style="color:var(--text-muted);"></i>
+        <h3>Your Inventory for {{ req.blood_group }} {{ req.component }}</h3>
+      </div>
+      <div class="card-body">
+        {% if inv_match %}
+          {% set sufficient = inv_match.effective_units >= req.units_required %}
+          <div style="display:flex;align-items:center;gap:16px;padding:16px;
+                      background:{% if sufficient %}rgba(39,174,96,0.06){% else %}rgba(243,156,18,0.06){% endif %};
+                      border-radius:var(--radius-sm);
+                      border:1px solid {% if sufficient %}rgba(39,174,96,0.3){% else %}rgba(243,156,18,0.3){% endif %};">
+            <div style="font-size:2.5rem;font-weight:800;
+                        color:{% if sufficient %}var(--status-ok){% else %}var(--status-warn){% endif %};">
+              {{ inv_match.effective_units }}
+            </div>
+            <div>
+              <p style="font-weight:600;color:var(--text-primary);">Units Effectively Available</p>
+              <p class="fs-sm text-muted">
+                {{ inv_match.units_available }} total — {{ inv_match.units_reserved }} reserved
+              </p>
+              {% if inv_match.expiry_date %}
+              <p class="fs-xs text-muted" style="margin-top:4px;">
+                <i class="fa-solid fa-calendar" style="margin-right:4px;"></i>
+                Expires: {{ inv_match.expiry_date.strftime('%d %b %Y') }}
+              </p>
+              {% endif %}
+            </div>
+            <div style="margin-left:auto;">
+              {% if sufficient %}
+                <span class="badge badge-ok" style="font-size:0.8rem;padding:5px 12px;">
+                  <span class="badge-dot"></span> Sufficient Stock
+                </span>
+              {% else %}
+                <span class="badge badge-low" style="font-size:0.8rem;padding:5px 12px;">
+                  <span class="badge-dot"></span> Partial Stock
+                </span>
+              {% endif %}
+            </div>
+          </div>
+          <div class="alert alert-warning" style="margin-top:14px;margin-bottom:0;">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <strong>Important:</strong> This shows database records only.
+            Physically verify your actual stock before responding.
+          </div>
+        {% else %}
+          <div class="empty-state" style="padding:24px;">
+            <i class="fa-solid fa-xmark-circle" style="color:var(--status-critical);opacity:1;"></i>
+            <h4 style="color:var(--status-critical);">No Record Found</h4>
+            <p>No inventory record for {{ req.blood_group }} {{ req.component }} in your database.</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── Response Panel ───────────────────────────────────── -->
+  <div style="display:flex;flex-direction:column;gap:16px;">
+
+    {% if existing_response %}
+    <div class="card">
+      <div class="card-header">
+        <i class="fa-solid fa-circle-check" style="color:var(--status-ok);"></i>
+        <h3>Your Response Submitted</h3>
+      </div>
+      <div class="card-body">
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div class="d-flex justify-between fs-sm">
+            <span class="text-muted">Status</span>
+            <span class="badge badge-{{ 'ok' if existing_response.availability_status == 'Available' else ('low' if existing_response.availability_status == 'Partial' else 'critical') }}">
+              {{ existing_response.availability_status }}
+            </span>
+          </div>
+          <div class="d-flex justify-between fs-sm">
+            <span class="text-muted">Units Confirmed Available</span>
+            <strong>{{ existing_response.units_available }}</strong>
+          </div>
+          <div class="d-flex justify-between fs-sm">
+            <span class="text-muted">Units Committed</span>
+            <strong>{{ existing_response.units_committed }}</strong>
+          </div>
+          <div class="d-flex justify-between fs-sm">
+            <span class="text-muted">Responded At</span>
+            <strong>{{ existing_response.responded_at.strftime('%d %b %Y, %H:%M') }}</strong>
+          </div>
+          {% if existing_response.notes %}
+          <div style="padding:10px;background:var(--bg-main);border-radius:var(--radius-sm);border:1px solid var(--border);">
+            <p class="fs-xs text-muted fw-600" style="margin-bottom:3px;">Notes</p>
+            <p class="fs-sm">{{ existing_response.notes }}</p>
+          </div>
+          {% endif %}
+        </div>
+        <div class="alert alert-info" style="margin-top:14px;margin-bottom:0;">
+          <i class="fa-solid fa-circle-info"></i>
+          Response submitted. The hospital has been notified.
+        </div>
+      </div>
+    </div>
+
+    {% elif req.status == 'Cancelled' or req.status == 'Fulfilled' %}
+    <div class="card">
+      <div class="card-body" style="text-align:center;padding:36px;">
+        <i class="fa-solid fa-circle-check" style="font-size:2rem;color:var(--status-ok);margin-bottom:12px;display:block;"></i>
+        <h3>Request {{ req.status }}</h3>
+        <p class="fs-sm text-muted" style="margin-top:8px;">
+          This request has been {{ req.status|lower }}. No response needed.
+        </p>
+      </div>
+    </div>
+
+    {% else %}
+    <!-- Response Form -->
+    <div class="card">
+      <div class="card-header">
+        <i class="fa-solid fa-reply" style="color:var(--primary);"></i>
+        <h3>Submit Your Response</h3>
+      </div>
+      <div class="card-body">
+        <div class="alert alert-info" style="margin-bottom:16px;">
+          <i class="fa-solid fa-circle-info"></i>
+          <strong>Verify physically first.</strong> Do not rely solely on database records.
+        </div>
+
+        <form method="POST" action="/api/request/{{ req.id }}/respond"
+              onsubmit="submitResponse(event)" id="response-form">
+          <div class="form-group">
+            <label class="form-label">Availability Status <span style="color:var(--status-critical);">*</span></label>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <label style="display:flex;align-items:center;gap:10px;cursor:pointer;
+                            padding:12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);
+                            transition:border-color 0.2s;" id="avail-label-available">
+                <input type="radio" name="availability_status" value="Available"
+                       onchange="updateAvailLabel()"
+                       style="accent-color:var(--status-ok);width:16px;height:16px;"/>
+                <div>
+                  <strong style="color:var(--status-ok);">✔ Available</strong>
+                  <p class="fs-xs text-muted" style="margin-top:1px;">
+                    Stock verified – can supply requested units
+                  </p>
+                </div>
+              </label>
+              <label style="display:flex;align-items:center;gap:10px;cursor:pointer;
+                            padding:12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);
+                            transition:border-color 0.2s;" id="avail-label-partial">
+                <input type="radio" name="availability_status" value="Partial"
+                       onchange="updateAvailLabel()"
+                       style="accent-color:var(--status-warn);width:16px;height:16px;"/>
+                <div>
+                  <strong style="color:var(--status-warn);">◑ Partially Available</strong>
+                  <p class="fs-xs text-muted" style="margin-top:1px;">
+                    Can supply fewer units than requested
+                  </p>
+                </div>
+              </label>
+              <label style="display:flex;align-items:center;gap:10px;cursor:pointer;
+                            padding:12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);
+                            transition:border-color 0.2s;" id="avail-label-unavailable">
+                <input type="radio" name="availability_status" value="Unavailable"
+                       onchange="updateAvailLabel()"
+                       style="accent-color:var(--status-critical);width:16px;height:16px;"/>
+                <div>
+                  <strong style="color:var(--status-critical);">✕ Unavailable</strong>
+                  <p class="fs-xs text-muted" style="margin-top:1px;">
+                    Cannot supply – stock insufficient or absent
+                  </p>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <div class="form-row" id="units-fields" style="display:none;">
+            <div class="form-group">
+              <label class="form-label">Units Actually Available</label>
+              <input type="number" name="units_available" id="resp-units-avail"
+                     class="form-control" min="0" placeholder="After physical verification"/>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Units You Can Commit</label>
+              <input type="number" name="units_committed" id="resp-units-commit"
+                     class="form-control" min="0" placeholder="Units you will dispatch"/>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Notes / Instructions for Hospital</label>
+            <textarea name="notes" class="form-control" rows="3"
+                      placeholder="e.g. Available – contact our coordinator at 022-XXXX for collection arrangements"></textarea>
+          </div>
+
+          <div id="resp-result"></div>
+
+          <div style="display:flex;gap:10px;margin-top:4px;">
+            <button type="submit" class="btn btn-primary flex-1" id="resp-submit-btn">
+              <i class="fa-solid fa-paper-plane"></i> Submit Response
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Other responses to this request -->
+    {% if req.responses %}
+    <div class="card">
+      <div class="card-header">
+        <i class="fa-solid fa-comments" style="color:var(--text-muted);"></i>
+        <h3>All Responses to this Request</h3>
+      </div>
+      {% for resp in req.responses %}
+      <div class="notif-item">
+        <div class="notif-icon {{ 'response' if resp.availability_status == 'Available' else ('low-stock' if resp.availability_status == 'Partial' else 'emergency') }}">
+          <i class="fa-solid fa-{{ 'check' if resp.availability_status == 'Available' else ('circle-half-stroke' if resp.availability_status == 'Partial' else 'xmark') }}"></i>
+        </div>
+        <div style="flex:1;">
+          <div class="notif-title">
+            {{ resp.blood_bank.name }}
+            <span class="badge badge-{{ 'ok' if resp.availability_status == 'Available' else ('low' if resp.availability_status == 'Partial' else 'critical') }}" style="margin-left:8px;">
+              {{ resp.availability_status }}
+            </span>
+          </div>
+          <div class="notif-message">
+            {{ resp.units_available }} units available, {{ resp.units_committed }} committed.
+            {% if resp.notes %}| {{ resp.notes[:60] }}{% endif %}
+          </div>
+          <div class="notif-time">{{ resp.responded_at.strftime('%d %b %Y, %H:%M') }}</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function updateAvailLabel() {
+  const val = document.querySelector('input[name=availability_status]:checked')?.value;
+  document.getElementById('units-fields').style.display =
+    (val === 'Available' || val === 'Partial') ? 'grid' : 'none';
+  // Highlight selected
+  ['available','partial','unavailable'].forEach(v => {
+    const lbl = document.getElementById(`avail-label-${v}`);
+    if (lbl) lbl.style.borderColor = 'var(--border)';
+  });
+  if (val) {
+    const colours = { Available:'var(--status-ok)', Partial:'var(--status-warn)', Unavailable:'var(--status-critical)' };
+    document.getElementById(`avail-label-${val.toLowerCase()}`).style.borderColor = colours[val];
+  }
+}
+
+async function submitResponse(e) {
+  e.preventDefault();
+  const form   = e.target;
+  const btn    = document.getElementById('resp-submit-btn');
+  const result = document.getElementById('resp-result');
+  const status = document.querySelector('input[name=availability_status]:checked')?.value;
+  if (!status) {
+    result.innerHTML = '<div class="alert alert-danger" style="margin-bottom:12px;"><i class="fa-solid fa-circle-exclamation"></i> Please select an availability status.</div>';
+    return;
+  }
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Submitting…';
+
+  const data = Object.fromEntries(new FormData(form).entries());
+  try {
+    const res  = await fetch(form.action, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    const json = await res.json();
+    if (json.ok) {
+      result.innerHTML = '<div class="alert alert-success" style="margin-bottom:12px;"><i class="fa-solid fa-circle-check"></i> Response submitted! The hospital has been notified.</div>';
+      btn.style.display = 'none';
+      setTimeout(() => location.reload(), 2500);
+    } else { throw new Error(json.error || 'Server error'); }
+  } catch(err) {
+    result.innerHTML = `<div class="alert alert-danger" style="margin-bottom:12px;"><i class="fa-solid fa-circle-exclamation"></i> Error: ${err.message}</div>`;
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Submit Response';
+  }
+}
+</script>
+{% endblock %}

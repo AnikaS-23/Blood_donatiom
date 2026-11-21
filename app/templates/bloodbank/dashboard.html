@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+{% block title %}Blood Bank Dashboard{% endblock %}
+{% block topbar_title %}
+  <i class="fa-solid fa-gauge-high" style="color:var(--primary);margin-right:8px;"></i>
+  Blood Bank Dashboard
+{% endblock %}
+{% block topbar_actions %}
+  <a href="{{ url_for('bloodbank.inventory') }}" class="btn btn-outline btn-sm">
+    <i class="fa-solid fa-vials"></i> Manage Inventory
+  </a>
+  {{ super() }}
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>{{ bank.name }}</h1>
+  <p><i class="fa-solid fa-location-dot" style="margin-right:5px;"></i>
+     {{ bank.address }}, {{ bank.city }}, {{ bank.state }}</p>
+</div>
+
+{# ── Expired Units Banner ──────────────────────────────────────── #}
+{% if expired and expired|length > 0 %}
+<div class="alert alert-danger mb-24" style="border-radius:10px;align-items:flex-start;">
+  <i class="fa-solid fa-circle-exclamation" style="margin-top:2px;font-size:1.2rem;"></i>
+  <div style="flex:1;">
+    <strong>⚠️ {{ expired|length }} Blood Unit Record(s) Have Expired!</strong>
+    <div style="font-size:0.85rem;margin-top:4px;">
+      These units are past their expiry date but still marked as available.
+      Please discard them from inventory immediately.
+      <a href="{{ url_for('bloodbank.inventory') }}" style="color:inherit;font-weight:600;margin-left:6px;">
+        Go to Inventory <i class="fa-solid fa-arrow-right" style="font-size:0.75rem;"></i>
+      </a>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{# ── Stat Cards ──────────────────────────────────────────── #}
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="stat-icon red"><i class="fa-solid fa-droplet"></i></div>
+    <div class="stat-info">
+      <div class="stat-value">{{ total_units }}</div>
+      <div class="stat-label">Total Units</div>
+      <div class="stat-sub">Across all blood groups</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon yellow"><i class="fa-solid fa-triangle-exclamation"></i></div>
+    <div class="stat-info">
+      <div class="stat-value">{{ low_stock|length }}</div>
+      <div class="stat-label">Low / Critical Stock</div>
+      <div class="stat-sub">Need attention</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon orange"><i class="fa-solid fa-truck-medical"></i></div>
+    <div class="stat-info">
+      <div class="stat-value">{{ active_emergencies }}</div>
+      <div class="stat-label">Active Emergencies</div>
+      <div class="stat-sub">Pending response</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon {{ 'red' if expired and expired|length > 0 else 'blue' }}">
+      <i class="fa-solid fa-{{ 'calendar-xmark' if expired and expired|length > 0 else 'clock' }}"></i>
+    </div>
+    <div class="stat-info">
+      <div class="stat-value">{{ expiring_soon|length if expiring_soon is defined else 0 }}</div>
+      <div class="stat-label">Expiring within 7 Days</div>
+      <div class="stat-sub">{{ (expired|length if expired is defined else 0) }} already expired</div>
+    </div>
+  </div>
+</div>
+
+{# ── Expiring Soon Section ──────────────────────────────── #}
+{% if expiring_soon and expiring_soon|length > 0 %}
+<div class="card mb-24">
+  <div class="card-header">
+    <i class="fa-solid fa-clock" style="color:var(--status-warn);"></i>
+    <h3>Expiring Within 7 Days</h3>
+    <a href="{{ url_for('bloodbank.inventory') }}" class="btn btn-ghost btn-sm">Manage</a>
+  </div>
+  <div class="table-wrap" style="border:none;border-radius:0;">
+    <table>
+      <thead>
+        <tr><th>Blood Group</th><th>Component</th><th>Units</th><th>Expiry Date</th><th>Days Left</th></tr>
+      </thead>
+      <tbody>
+        {% for item in expiring_soon %}
+        {% set today = namespace(d=none) %}
+        <tr>
+          <td><strong style="color:var(--primary);">{{ item.blood_group }}</strong></td>
+          <td class="fs-sm">{{ item.component }}</td>
+          <td><strong>{{ item.units_available }}</strong></td>
+          <td>{{ item.expiry_date.strftime('%d %b %Y') if item.expiry_date else '–' }}</td>
+          <td>
+            {% if item.expiry_date %}
+              {% set diff = (item.expiry_date - now().date()).days if false else 0 %}
+              <span class="badge badge-{{ 'critical' if item.expiry_date.strftime('%Y-%m-%d') <= (now_date) else 'warn' }}"
+                    style="font-size:0.75rem;">
+                <span class="badge-dot"></span>
+                {{ item.expiry_date.strftime('%d %b') }}
+              </span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{# ── Blood Group Stock Overview ────────────────────────────── #}
+<div class="card mb-24">
+  <div class="card-header">
+    <i class="fa-solid fa-droplet" style="color:var(--primary);"></i>
+    <h3>Blood Group Stock Overview</h3>
+    <a href="{{ url_for('bloodbank.inventory') }}" class="btn btn-ghost btn-sm">
+      Full Inventory <i class="fa-solid fa-arrow-right" style="font-size:0.75rem;"></i>
+    </a>
+  </div>
+  <div class="card-body">
+    <div class="blood-grid">
+      {% for bg in ['A+','A-','B+','B-','O+','O-','AB+','AB-'] %}
+        {% set items = inventory|selectattr('blood_group','equalto',bg)|list %}
+        {% set total = items|sum(attribute='units_available') %}
+        {% set status = 'critical' if total == 0 else ('low' if total <= 5 else 'ok') %}
+        <div class="blood-cell {{ status }}">
+          <div class="blood-group-label">{{ bg }}</div>
+          <div class="blood-units {{ status }}">{{ total }}</div>
+          <div class="blood-unit-label">units</div>
+          <div style="margin-top:8px;">
+            <span class="badge badge-{{ 'ok' if status == 'ok' else status }}">
+              <span class="badge-dot"></span>
+              {{ 'OK' if status == 'ok' else status|title }}
+            </span>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+{# ── Low Stock Alerts + Emergency Requests ──────────────────── #}
+<div class="grid-2" style="margin-bottom:20px;">
+
+  <!-- Low Stock Alerts -->
+  <div class="card">
+    <div class="card-header">
+      <i class="fa-solid fa-triangle-exclamation" style="color:var(--status-warn);"></i>
+      <h3>Low Stock Alerts</h3>
+      <a href="{{ url_for('bloodbank.inventory') }}" class="btn btn-ghost btn-sm">Manage</a>
+    </div>
+    {% if low_stock %}
+    <div class="table-wrap" style="border:none;border-radius:0;">
+      <table>
+        <thead>
+          <tr><th>Blood Group</th><th>Component</th><th>Units</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          {% for item in low_stock|sort(attribute='units_available') %}
+          <tr>
+            <td><strong style="color:var(--primary);">{{ item.blood_group }}</strong></td>
+            <td class="fs-sm">{{ item.component }}</td>
+            <td><strong>{{ item.units_available }}</strong></td>
+            <td>
+              <span class="badge badge-{{ item.status_label }}">
+                <span class="badge-dot"></span>
+                {{ 'Critical' if item.status_label == 'critical' else 'Low' }}
+              </span>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <i class="fa-solid fa-circle-check" style="color:var(--status-ok);opacity:1;"></i>
+      <h4 style="color:var(--status-ok);">All Stock Levels OK</h4>
+      <p>No blood groups are below the alert threshold.</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Active Emergency Notifications -->
+  <div class="card">
+    <div class="card-header">
+      <i class="fa-solid fa-truck-medical" style="color:var(--status-critical);"></i>
+      <h3>Emergency Alerts</h3>
+      <a href="{{ url_for('bloodbank.emergency') }}" class="btn btn-primary btn-sm">
+        View All <i class="fa-solid fa-arrow-right" style="font-size:0.7rem;"></i>
+      </a>
+    </div>
+    {% if emergency_notifs %}
+      {% for notif in emergency_notifs[:5] %}
+      <div class="notif-item {% if not notif.is_read %}unread{% endif %}"
+           onclick="window.location='/bloodbank/emergency/{{ notif.reference_id }}'">
+        <div class="notif-icon emergency"><i class="fa-solid fa-siren-on"></i></div>
+        <div style="flex:1;min-width:0;">
+          <div class="notif-title">{{ notif.title }}</div>
+          <div class="notif-message">{{ notif.message[:100] }}{% if notif.message|length > 100 %}…{% endif %}</div>
+          <div class="notif-time">{{ notif.created_at.strftime('%d %b %Y, %H:%M') }}</div>
+        </div>
+        {% if not notif.is_dismissed %}
+        <span class="badge badge-critical" style="flex-shrink:0;align-self:flex-start;">New</span>
+        {% endif %}
+      </div>
+      {% endfor %}
+    {% else %}
+    <div class="empty-state">
+      <i class="fa-solid fa-siren"></i>
+      <h4>No Active Emergencies</h4>
+      <p>Emergency requests from hospitals will appear here.</p>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+
+{# ── Quick Links ───────────────────────────────────────────── #}
+<div class="card">
+  <div class="card-header">
+    <i class="fa-solid fa-bolt" style="color:var(--status-warn);"></i>
+    <h3>Quick Actions</h3>
+  </div>
+  <div class="card-body">
+    <div style="display:flex;gap:12px;flex-wrap:wrap;">
+      <a href="{{ url_for('bloodbank.inventory') }}" class="btn btn-outline">
+        <i class="fa-solid fa-plus"></i> Add Blood Units
+      </a>
+      <a href="{{ url_for('bloodbank.emergency') }}" class="btn btn-outline">
+        <i class="fa-solid fa-truck-medical"></i> View Emergency Requests
+      </a>
+      <a href="{{ url_for('bloodbank.analytics') }}" class="btn btn-outline">
+        <i class="fa-solid fa-chart-line"></i> View Analytics
+      </a>
+      <a href="{{ url_for('bloodbank.notifications') }}" class="btn btn-outline">
+        <i class="fa-solid fa-bell"></i> All Notifications
+      </a>
+      <a href="{{ url_for('bloodbank.settings') }}" class="btn btn-outline">
+        <i class="fa-solid fa-gear"></i> Alert Settings
+      </a>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // Auto-refresh dashboard every 60 seconds
+  setTimeout(function() { location.reload(); }, 60000);
+</script>
+{% endblock %}

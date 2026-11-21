@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+{% block title %}Request #{{ req.id }} – Tracking{% endblock %}
+{% block topbar_title %}
+  <i class="fa-solid fa-syringe" style="color:var(--primary);margin-right:8px;"></i>
+  Request #{{ req.id }} – Tracking
+{% endblock %}
+{% block topbar_actions %}
+  <a href="{{ url_for('hospital.requests') }}" class="btn btn-ghost btn-sm">
+    <i class="fa-solid fa-arrow-left"></i> All Requests
+  </a>
+  {{ super() }}
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Emergency Request #{{ req.id }}</h1>
+  <p>Track responses from blood banks in real time.</p>
+</div>
+
+<div class="grid-2">
+
+  <!-- ── Request Details ─────────────────────────────────── -->
+  <div style="display:flex;flex-direction:column;gap:16px;">
+    <div class="card">
+      <div class="card-header"
+           style="background:linear-gradient(135deg,#8B0000,#C0392B);border-radius:var(--radius-md) var(--radius-md) 0 0;">
+        <span style="font-size:1.3rem;">🚨</span>
+        <h3 style="color:#fff;">Request Details</h3>
+        <span class="badge badge-{{ req.urgency_level|lower }}" style="margin-left:auto;">
+          {{ req.urgency_level }}
+        </span>
+      </div>
+      <div class="card-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+          <div>
+            <p class="fs-xs text-muted fw-600" style="text-transform:uppercase;letter-spacing:0.5px;">Blood Group</p>
+            <p style="font-size:2rem;font-weight:900;color:var(--primary);line-height:1.2;">{{ req.blood_group }}</p>
+          </div>
+          <div>
+            <p class="fs-xs text-muted fw-600" style="text-transform:uppercase;letter-spacing:0.5px;">Units Required</p>
+            <p style="font-size:2rem;font-weight:900;line-height:1.2;">{{ req.units_required }}</p>
+          </div>
+        </div>
+        <div class="divider" style="margin:12px 0;"></div>
+        <div style="display:flex;flex-direction:column;gap:9px;">
+          {% for label, val in [
+            ('Component', req.component),
+            ('Status', req.status),
+            ('Required By', req.required_by_time.strftime('%d %b %Y, %H:%M') if req.required_by_time else 'ASAP'),
+            ('Submitted', req.created_at.strftime('%d %b %Y, %H:%M'))
+          ] %}
+          <div class="d-flex justify-between fs-sm">
+            <span class="text-muted">{{ label }}</span>
+            {% if label == 'Status' %}
+              <span class="badge badge-{{ req.status|lower }}">{{ req.status }}</span>
+            {% else %}
+              <strong>{{ val }}</strong>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+        {% if req.additional_notes %}
+        <div style="margin-top:14px;padding:10px 12px;background:var(--bg-main);
+                    border-radius:var(--radius-sm);border:1px solid var(--border);">
+          <p class="fs-xs text-muted fw-600" style="margin-bottom:3px;">Notes</p>
+          <p class="fs-sm">{{ req.additional_notes }}</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Summary of responses -->
+    <div class="card">
+      <div class="card-header">
+        <i class="fa-solid fa-chart-pie" style="color:var(--text-muted);"></i>
+        <h3>Response Summary</h3>
+      </div>
+      <div class="card-body">
+        {% set available = responses|selectattr('availability_status','equalto','Available')|list %}
+        {% set partial   = responses|selectattr('availability_status','equalto','Partial')|list %}
+        {% set unavail   = responses|selectattr('availability_status','equalto','Unavailable')|list %}
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;text-align:center;">
+          <div style="padding:14px;background:rgba(39,174,96,0.06);border-radius:var(--radius-sm);
+                      border:1px solid rgba(39,174,96,0.2);">
+            <div style="font-size:1.5rem;font-weight:800;color:var(--status-ok);">{{ available|length }}</div>
+            <div class="fs-xs text-muted">Available</div>
+          </div>
+          <div style="padding:14px;background:rgba(243,156,18,0.06);border-radius:var(--radius-sm);
+                      border:1px solid rgba(243,156,18,0.2);">
+            <div style="font-size:1.5rem;font-weight:800;color:var(--status-warn);">{{ partial|length }}</div>
+            <div class="fs-xs text-muted">Partial</div>
+          </div>
+          <div style="padding:14px;background:rgba(231,76,60,0.06);border-radius:var(--radius-sm);
+                      border:1px solid rgba(231,76,60,0.2);">
+            <div style="font-size:1.5rem;font-weight:800;color:var(--status-critical);">{{ unavail|length }}</div>
+            <div class="fs-xs text-muted">Unavailable</div>
+          </div>
+        </div>
+        {% set total_committed = responses|sum(attribute='units_committed') %}
+        {% if total_committed > 0 %}
+        <div style="margin-top:14px;padding:12px;background:rgba(39,174,96,0.06);
+                    border-radius:var(--radius-sm);border:1px solid rgba(39,174,96,0.25);">
+          <p class="fs-sm" style="color:var(--status-ok);font-weight:600;">
+            <i class="fa-solid fa-circle-check" style="margin-right:6px;"></i>
+            Total units committed by blood banks:
+            <strong style="font-size:1.1rem;margin-left:4px;">{{ total_committed }}</strong>
+            / {{ req.units_required }} required
+          </p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Responses from Blood Banks ─────────────────────── -->
+  <div>
+    <div class="card">
+      <div class="card-header">
+        <i class="fa-solid fa-reply-all" style="color:var(--primary);"></i>
+        <h3>Blood Bank Responses
+          <span style="font-weight:400;font-size:0.8rem;color:var(--text-muted);margin-left:6px;">
+            {{ responses|length }} received
+          </span>
+        </h3>
+      </div>
+      {% if responses %}
+        {% for resp in responses %}
+        <div style="padding:16px 20px;border-bottom:1px solid var(--border-light);">
+          <div style="display:flex;align-items:flex-start;gap:14px;">
+            <div style="width:40px;height:40px;border-radius:50%;flex-shrink:0;
+                        display:flex;align-items:center;justify-content:center;font-size:1rem;
+                        background:{% if resp.availability_status == 'Available' %}rgba(39,174,96,0.1)
+                                   {% elif resp.availability_status == 'Partial' %}rgba(243,156,18,0.1)
+                                   {% else %}rgba(231,76,60,0.1){% endif %};
+                        color:{% if resp.availability_status == 'Available' %}var(--status-ok)
+                              {% elif resp.availability_status == 'Partial' %}var(--status-warn)
+                              {% else %}var(--status-critical){% endif %};">
+              <i class="fa-solid fa-{{ 'check' if resp.availability_status == 'Available' else ('circle-half-stroke' if resp.availability_status == 'Partial' else 'xmark') }}"></i>
+            </div>
+            <div style="flex:1;">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;">
+                <strong class="fs-sm">{{ resp.blood_bank.name }}</strong>
+                <span class="badge badge-{{ 'ok' if resp.availability_status == 'Available' else ('low' if resp.availability_status == 'Partial' else 'critical') }}">
+                  <span class="badge-dot"></span>{{ resp.availability_status }}
+                </span>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;">
+                <div class="fs-xs text-muted">
+                  Units Available: <strong style="color:var(--text-primary);">{{ resp.units_available }}</strong>
+                </div>
+                <div class="fs-xs text-muted">
+                  Units Committed: <strong style="color:var(--text-primary);">{{ resp.units_committed }}</strong>
+                </div>
+              </div>
+              {% if resp.notes %}
+              <div style="padding:8px 10px;background:var(--bg-main);border-radius:var(--radius-sm);
+                          border:1px solid var(--border-light);">
+                <p class="fs-xs text-muted">{{ resp.notes }}</p>
+              </div>
+              {% endif %}
+              <p class="fs-xs text-muted" style="margin-top:6px;">
+                <i class="fa-solid fa-clock" style="margin-right:3px;"></i>
+                Responded {{ resp.responded_at.strftime('%d %b %Y, %H:%M') }}
+              </p>
+            </div>
+          </div>
+          {% if resp.availability_status in ('Available','Partial') and resp.units_committed > 0 %}
+          <div style="margin-top:12px;margin-left:54px;">
+            <div style="display:flex;gap:8px;">
+              <div class="fs-sm" style="color:var(--text-secondary);">
+                <i class="fa-solid fa-phone" style="margin-right:4px;color:var(--text-muted);"></i>
+                {{ resp.blood_bank.contact_phone or '—' }}
+              </div>
+              <div class="fs-sm" style="color:var(--text-secondary);">
+                <i class="fa-solid fa-location-dot" style="margin-right:4px;color:var(--text-muted);"></i>
+                {{ resp.blood_bank.city }}
+              </div>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      {% else %}
+      <div class="empty-state">
+        <i class="fa-solid fa-clock" style="font-size:2rem;"></i>
+        <h4>Awaiting Responses</h4>
+        <p>Nearby blood banks have been notified and will respond shortly.</p>
+        <div style="margin-top:16px;display:flex;align-items:center;justify-content:center;gap:8px;
+                    color:var(--text-muted);font-size:0.82rem;">
+          <span class="spinner"></span>
+          <span>Listening for responses…</span>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Auto-refresh responses every 15s while request is pending
+{% if req.status == 'Pending' %}
+setTimeout(() => location.reload(), 15000);
+{% endif %}
+</script>
+{% endblock %}

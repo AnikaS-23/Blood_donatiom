@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Notifications{% endblock %}
+{% block topbar_title %}
+  <i class="fa-solid fa-bell" style="color:var(--primary);margin-right:8px;"></i>
+  Notifications
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Your Notifications</h1>
+  <p>Blood bank responses, system updates, and alerts for {{ hospital.name }}.</p>
+</div>
+
+<div class="card">
+  {% if notifications %}
+    {% for notif in notifications %}
+    {% set icon_map = {
+      'Response':('fa-reply','response'),
+      'System':('fa-gear','system'),
+      'Emergency':('fa-siren-on','emergency')
+    } %}
+    {% set icon_data = icon_map.get(notif.type, ('fa-bell','system')) %}
+    <div class="notif-item {% if not notif.is_read %}unread{% endif %}"
+         {% if notif.reference_id %}
+         onclick="window.location='{{ url_for('hospital.request_detail', req_id=notif.reference_id) }}'"
+         style="cursor:pointer;"
+         {% endif %}>
+      <div class="notif-icon {{ icon_data[1] }}">
+        <i class="fa-solid {{ icon_data[0] }}"></i>
+      </div>
+      <div style="flex:1;min-width:0;">
+        <div class="notif-title">{{ notif.title }}</div>
+        <div class="notif-message">{{ notif.message }}</div>
+        <div class="notif-time">
+          <i class="fa-solid fa-clock" style="margin-right:3px;font-size:0.65rem;"></i>
+          {{ notif.created_at.strftime('%d %b %Y, %H:%M') }}
+        </div>
+      </div>
+      {% if not notif.is_read %}
+        <span class="badge badge-critical" style="flex-shrink:0;align-self:flex-start;font-size:0.65rem;">New</span>
+      {% endif %}
+    </div>
+    {% endfor %}
+  {% else %}
+  <div class="empty-state">
+    <i class="fa-solid fa-bell-slash"></i>
+    <h4>No Notifications</h4>
+    <p>When blood banks respond to your requests, you'll see their responses here.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

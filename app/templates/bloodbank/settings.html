@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Alert Settings{% endblock %}
+{% block topbar_title %}
+  <i class="fa-solid fa-gear" style="color:var(--primary);margin-right:8px;"></i>
+  Alert Threshold Settings
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Low-Stock Alert Thresholds</h1>
+  <p>Set the minimum unit count at which a low-stock notification is triggered for each blood group and component.</p>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <i class="fa-solid fa-sliders" style="color:var(--primary);"></i>
+    <h3>{{ bank.name }} – Threshold Configuration</h3>
+    <span class="badge badge-ok"><span class="badge-dot"></span>{{ blood_groups|length * components|length }} combinations</span>
+  </div>
+
+  <form method="POST" action="{{ url_for('bloodbank.bulk_threshold_update') }}" id="threshold-form">
+    <div class="table-wrap" style="border:none;border-radius:0;">
+      <table>
+        <thead>
+          <tr>
+            <th>Blood Group</th>
+            {% for comp in components %}
+            <th style="text-align:center;">{{ comp }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for bg in blood_groups %}
+          <tr>
+            <td><strong style="color:var(--primary);font-size:1rem;">{{ bg }}</strong></td>
+            {% for comp in components %}
+            {% set current = thresholds.get((bg, comp), 5) %}
+            <td style="text-align:center;">
+              <input type="number"
+                     name="threshold_{{ bg }}_{{ comp }}"
+                     value="{{ current }}"
+                     min="0" max="999"
+                     style="width:70px;padding:6px 8px;border:1px solid var(--border);
+                            border-radius:6px;text-align:center;font-size:0.9rem;
+                            background:var(--surface);color:var(--text-primary);"
+                     title="{{ bg }} {{ comp }} threshold">
+            </td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="card-body" style="border-top:1px solid var(--border);padding-top:16px;">
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+        <button type="submit" class="btn btn-primary">
+          <i class="fa-solid fa-floppy-disk"></i> Save All Thresholds
+        </button>
+        <span style="color:var(--text-muted);font-size:0.85rem;">
+          <i class="fa-solid fa-circle-info" style="margin-right:4px;"></i>
+          Alerts trigger when available units ≤ the threshold value. Set 0 to only alert on empty stock.
+        </span>
+      </div>
+    </div>
+  </form>
+</div>
+
+<!-- Current notification status -->
+<div class="card mt-24">
+  <div class="card-header">
+    <i class="fa-solid fa-bell" style="color:var(--status-warn);"></i>
+    <h3>Current Alert Status</h3>
+    <a href="{{ url_for('bloodbank.notifications') }}" class="btn btn-ghost btn-sm">View All Notifications</a>
+  </div>
+  <div class="card-body">
+    <div style="display:flex;gap:24px;flex-wrap:wrap;">
+      <div style="text-align:center;padding:16px 24px;background:var(--surface-hover);border-radius:10px;min-width:120px;">
+        <div style="font-size:1.8rem;font-weight:700;color:var(--status-critical);">{{ unread_count }}</div>
+        <div style="font-size:0.8rem;color:var(--text-muted);margin-top:4px;">Unread Alerts</div>
+      </div>
+      <div style="text-align:center;padding:16px 24px;background:var(--surface-hover);border-radius:10px;min-width:120px;">
+        <div style="font-size:1.8rem;font-weight:700;color:var(--status-critical);">{{ active_emergencies }}</div>
+        <div style="font-size:0.8rem;color:var(--text-muted);margin-top:4px;">Active Emergencies</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

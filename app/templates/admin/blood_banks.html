@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Manage Blood Banks{% endblock %}
+{% block topbar_title %}
+  <i class="fa-solid fa-droplet" style="color:var(--primary);margin-right:8px;"></i>
+  Manage Blood Banks
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Blood Banks in the Network</h1>
+  <p>Activate, deactivate, and verify blood banks in the BloodConnect portal.</p>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <i class="fa-solid fa-droplet" style="color:var(--text-muted);"></i>
+    <h3>Blood Banks <span style="font-weight:400;font-size:0.8rem;color:var(--text-muted);margin-left:6px;">
+      {{ blood_banks|length }} registered
+    </span></h3>
+  </div>
+  {% if blood_banks %}
+  <div class="table-wrap" style="border:none;border-radius:0;">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th><th>Name</th><th>City</th><th>Contact</th>
+          <th>License</th><th>Verified</th><th>Active</th><th>Registered</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for b in blood_banks %}
+        <tr>
+          <td class="text-muted fs-sm">{{ b.id }}</td>
+          <td>
+            <strong class="fs-sm">{{ b.name }}</strong>
+            <div class="fs-xs text-muted">{{ b.address }}</div>
+          </td>
+          <td class="fs-sm">{{ b.city }}, {{ b.state }}</td>
+          <td class="fs-xs text-muted">
+            {{ b.contact_phone or '—' }}<br/>{{ b.contact_email or '' }}
+          </td>
+          <td class="fs-xs text-muted">{{ b.license_number }}</td>
+          <td>
+            {% if b.is_verified %}
+              <span class="badge badge-ok"><span class="badge-dot"></span>Verified</span>
+            {% else %}
+              <span class="badge badge-pending"><span class="badge-dot"></span>Unverified</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if b.is_active %}
+              <span class="badge badge-ok"><span class="badge-dot"></span>Active</span>
+            {% else %}
+              <span class="badge badge-critical"><span class="badge-dot"></span>Inactive</span>
+            {% endif %}
+          </td>
+          <td class="text-muted fs-xs">{{ b.created_at.strftime('%d %b %Y') }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <i class="fa-solid fa-droplet"></i>
+    <h4>No Blood Banks</h4>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

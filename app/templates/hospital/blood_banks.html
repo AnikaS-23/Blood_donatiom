@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Blood Banks Near You{% endblock %}
+{% block topbar_title %}
+  <i class="fa-solid fa-location-dot" style="color:var(--primary);margin-right:8px;"></i>
+  Nearby Blood Banks
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Participating Blood Banks</h1>
+  <p>Blood banks in the network, sorted by distance from {{ hospital.name }}.</p>
+</div>
+
+<!-- Distance legend -->
+<div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+  <span class="badge badge-ok"><span class="badge-dot"></span> Within 20 km</span>
+  <span class="badge badge-low"><span class="badge-dot"></span> 20–40 km</span>
+  <span class="badge badge-critical"><span class="badge-dot"></span> Over 40 km</span>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;">
+  {% for bank, dist in banks_with_dist %}
+  <div class="card" style="border-left:4px solid
+    {% if dist <= 20 %}var(--status-ok)
+    {% elif dist <= 40 %}var(--status-warn)
+    {% else %}var(--status-critical){% endif %};">
+    <div class="card-body" style="padding:18px 20px;">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:12px;">
+        <div>
+          <h3 style="font-size:0.95rem;margin-bottom:4px;">{{ bank.name }}</h3>
+          <p class="fs-xs text-muted">
+            <i class="fa-solid fa-location-dot" style="margin-right:3px;"></i>
+            {{ bank.city }}, {{ bank.state }}
+          </p>
+        </div>
+        <div style="text-align:right;flex-shrink:0;">
+          <div style="font-size:1.2rem;font-weight:800;
+                      color:{% if dist <= 20 %}var(--status-ok){% elif dist <= 40 %}var(--status-warn){% else %}var(--status-critical){% endif %};">
+            {{ dist }} km
+          </div>
+          <div class="fs-xs text-muted">away</div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:7px;margin-bottom:14px;">
+        {% if bank.contact_phone %}
+        <div class="d-flex align-center gap-8 fs-sm">
+          <i class="fa-solid fa-phone" style="color:var(--text-muted);width:14px;"></i>
+          <a href="tel:{{ bank.contact_phone }}" style="color:var(--text-secondary);">
+            {{ bank.contact_phone }}
+          </a>
+        </div>
+        {% endif %}
+        {% if bank.contact_email %}
+        <div class="d-flex align-center gap-8 fs-sm">
+          <i class="fa-solid fa-envelope" style="color:var(--text-muted);width:14px;"></i>
+          <a href="mailto:{{ bank.contact_email }}" style="color:var(--text-secondary);">
+            {{ bank.contact_email }}
+          </a>
+        </div>
+        {% endif %}
+        <div class="d-flex align-center gap-8 fs-xs text-muted">
+          <i class="fa-solid fa-map-pin" style="width:14px;"></i>
+          {{ bank.address }}
+        </div>
+      </div>
+
+      <div style="display:flex;gap:8px;">
+        <span class="badge {% if dist <= 20 %}badge-ok{% elif dist <= 40 %}badge-low{% else %}badge-critical{% endif %}">
+          <span class="badge-dot"></span>
+          {% if dist <= 20 %}Nearby{% elif dist <= 40 %}Moderate Distance{% else %}Far{% endif %}
+        </span>
+        <span class="badge badge-ok">
+          <span class="badge-dot"></span>Active
+        </span>
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <div class="card" style="grid-column:1/-1;">
+    <div class="empty-state">
+      <i class="fa-solid fa-location-dot"></i>
+      <h4>No Blood Banks Found</h4>
+      <p>No verified blood banks are currently in the network.</p>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

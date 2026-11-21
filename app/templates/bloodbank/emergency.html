@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}Emergency Requests{% endblock %}
+{% block topbar_title %}
+  <i class="fa-solid fa-truck-medical" style="color:var(--status-critical);margin-right:8px;"></i>
+  Emergency Requests
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Active Emergency Requests</h1>
+  <p>Review all pending blood requests from hospitals. Verify your stock before responding.</p>
+</div>
+
+{% if requests %}
+<div style="display:flex;flex-direction:column;gap:16px;">
+  {% for req in requests %}
+  {% set inv_match = bank.inventory|selectattr('blood_group','equalto',req.blood_group)
+                                   |selectattr('component','equalto',req.component)|first|default(none) %}
+  <div class="card" style="border-left:4px solid
+    {% if req.urgency_level == 'Critical' %}var(--status-critical)
+    {% elif req.urgency_level == 'High' %}var(--status-warn)
+    {% else %}var(--status-info){% endif %};">
+    <div class="card-body" style="padding:20px 24px;">
+      <div style="display:flex;align-items:flex-start;gap:20px;flex-wrap:wrap;">
+
+        <!-- Blood group badge -->
+        <div style="text-align:center;min-width:64px;">
+          <div style="font-size:2rem;font-weight:900;color:var(--primary);line-height:1;">
+            {{ req.blood_group }}
+          </div>
+          <div class="fs-xs text-muted" style="margin-top:2px;">blood group</div>
+        </div>
+
+        <!-- Details -->
+        <div style="flex:1;min-width:200px;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;">
+            <span class="badge badge-{{ req.urgency_level|lower }}">
+              <span class="badge-dot"></span>{{ req.urgency_level }}
+            </span>
+            <span class="badge badge-pending">{{ req.status }}</span>
+            <span class="fs-xs text-muted">
+              <i class="fa-solid fa-clock" style="margin-right:3px;"></i>
+              {{ req.created_at.strftime('%d %b %Y, %H:%M') }}
+            </span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;">
+            <div class="fs-sm">
+              <span class="text-muted">Component:</span>
+              <strong style="margin-left:6px;">{{ req.component }}</strong>
+            </div>
+            <div class="fs-sm">
+              <span class="text-muted">Units Needed:</span>
+              <strong style="margin-left:6px;">{{ req.units_required }}</strong>
+            </div>
+            <div class="fs-sm">
+              <span class="text-muted">Hospital:</span>
+              <strong style="margin-left:6px;">{{ req.hospital.name }}</strong>
+            </div>
+            <div class="fs-sm">
+              <span class="text-muted">Location:</span>
+              <strong style="margin-left:6px;">{{ req.hospital.city }}</strong>
+            </div>
+            <div class="fs-sm">
+              <span class="text-muted">Required By:</span>
+              <strong style="margin-left:6px;">
+                {{ req.required_by_time.strftime('%d %b, %H:%M') if req.required_by_time else 'ASAP' }}
+              </strong>
+            </div>
+            <div class="fs-sm">
+              <span class="text-muted">Responses So Far:</span>
+              <strong style="margin-left:6px;">{{ req.responses|length }}</strong>
+            </div>
+          </div>
+          {% if req.additional_notes %}
+          <p class="fs-xs text-muted" style="margin-top:8px;">
+            <i class="fa-solid fa-note-sticky" style="margin-right:4px;"></i>
+            {{ req.additional_notes[:120] }}{% if req.additional_notes|length > 120 %}…{% endif %}
+          </p>
+          {% endif %}
+        </div>
+
+        <!-- Inventory hint + action -->
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:10px;min-width:160px;">
+          {% if inv_match %}
+            {% if inv_match.effective_units >= req.units_required %}
+            <div style="text-align:right;">
+              <div style="font-size:1.3rem;font-weight:800;color:var(--status-ok);">
+                {{ inv_match.effective_units }}
+              </div>
+              <div class="fs-xs text-muted">units in DB</div>
+              <span class="badge badge-ok" style="margin-top:4px;">
+                <span class="badge-dot"></span> Potentially Available
+              </span>
+            </div>
+            {% else %}
+            <div style="text-align:right;">
+              <div style="font-size:1.3rem;font-weight:800;color:var(--status-warn);">
+                {{ inv_match.effective_units }}
+              </div>
+              <div class="fs-xs text-muted">units in DB</div>
+              <span class="badge badge-low" style="margin-top:4px;">
+                <span class="badge-dot"></span> Partial Match
+              </span>
+            </div>
+            {% endif %}
+          {% else %}
+          <div style="text-align:right;">
+            <span class="badge badge-pending">No DB Record</span>
+          </div>
+          {% endif %}
+          <a href="{{ url_for('bloodbank.emergency_detail', req_id=req.id) }}"
+             class="btn btn-primary btn-sm">
+            <i class="fa-solid fa-eye"></i> View & Respond
+          </a>
+        </div>
+
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{% else %}
+<div class="card">
+  <div class="empty-state" style="padding:60px 24px;">
+    <i class="fa-solid fa-siren" style="font-size:3rem;"></i>
+    <h4>No Active Emergency Requests</h4>
+    <p>When hospitals submit emergency blood requests, they will appear here.</p>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

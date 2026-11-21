@@ -1,0 +1,355 @@
+{% extends "base.html" %}
+{% block title %}Hospital Dashboard{% endblock %}
+{% block topbar_title %}
+  <i class="fa-solid fa-gauge-high" style="color:var(--primary);margin-right:8px;"></i>
+  Hospital Dashboard
+{% endblock %}
+{% block topbar_actions %}
+  <a href="/api/request/new" id="new-request-btn"
+     class="btn btn-primary btn-sm"
+     onclick="openRequestModal(event)">
+    <i class="fa-solid fa-plus"></i> New Emergency Request
+  </a>
+  {{ super() }}
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>{{ hospital.name }}</h1>
+  <p><i class="fa-solid fa-location-dot" style="margin-right:5px;"></i>
+     {{ hospital.address }}, {{ hospital.city }}, {{ hospital.state }}</p>
+</div>
+
+<!-- ── Stat Cards ──────────────────────────────────────────── -->
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="stat-icon red"><i class="fa-solid fa-syringe"></i></div>
+    <div class="stat-info">
+      <div class="stat-value">{{ active_requests|length }}</div>
+      <div class="stat-label">Active Requests</div>
+      <div class="stat-sub">Currently pending</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon blue"><i class="fa-solid fa-clock-rotate-left"></i></div>
+    <div class="stat-info">
+      <div class="stat-value">{{ recent_requests|length }}</div>
+      <div class="stat-label">Total Requests</div>
+      <div class="stat-sub">All time</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon green"><i class="fa-solid fa-circle-check"></i></div>
+    <div class="stat-info">
+      {% set fulfilled = recent_requests|selectattr('status','equalto','Fulfilled')|list %}
+      <div class="stat-value">{{ fulfilled|length }}</div>
+      <div class="stat-label">Fulfilled</div>
+      <div class="stat-sub">Successfully resolved</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon yellow"><i class="fa-solid fa-bell"></i></div>
+    <div class="stat-info">
+      <div class="stat-value">{{ unread_count }}</div>
+      <div class="stat-label">New Notifications</div>
+      <div class="stat-sub">Unread</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Active Requests + Quick Actions ──────────────────────── -->
+<div class="grid-2" style="margin-bottom:20px;">
+
+  <!-- Active Requests -->
+  <div class="card">
+    <div class="card-header">
+      <i class="fa-solid fa-truck-medical" style="color:var(--status-critical);"></i>
+      <h3>Active Emergency Requests</h3>
+      <a href="{{ url_for('hospital.requests') }}" class="btn btn-ghost btn-sm">View All</a>
+    </div>
+    {% if active_requests %}
+    <div class="table-wrap" style="border:none;border-radius:0;">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th><th>Blood Group</th><th>Component</th>
+            <th>Units</th><th>Urgency</th><th>Status</th><th>Submitted</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for req in active_requests %}
+          <tr style="cursor:pointer;" onclick="window.location='/hospital/request/{{ req.id }}'">
+            <td class="text-muted fs-sm">#{{ req.id }}</td>
+            <td><strong style="color:var(--primary);font-size:1rem;">{{ req.blood_group }}</strong></td>
+            <td>{{ req.component }}</td>
+            <td><strong>{{ req.units_required }}</strong></td>
+            <td>
+              <span class="badge badge-{{ req.urgency_level|lower }}">
+                <span class="badge-dot"></span>{{ req.urgency_level }}
+              </span>
+            </td>
+            <td>
+              <span class="badge badge-{{ req.status|lower }}">{{ req.status }}</span>
+            </td>
+            <td class="text-muted fs-sm">{{ req.created_at.strftime('%d %b, %H:%M') }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <i class="fa-solid fa-circle-check"></i>
+      <h4>No Active Requests</h4>
+      <p>No pending emergency requests at this time.</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Quick Actions -->
+  <div style="display:flex;flex-direction:column;gap:16px;">
+    <!-- New Request Card -->
+    <div class="card">
+      <div class="card-body" style="text-align:center;padding:28px;">
+        <div style="width:56px;height:56px;background:rgba(139,0,0,0.08);border-radius:50%;
+                    display:flex;align-items:center;justify-content:center;
+                    margin:0 auto 16px;font-size:1.5rem;">🚨</div>
+        <h3 style="margin-bottom:8px;">Submit Emergency Request</h3>
+        <p style="font-size:0.85rem;margin-bottom:20px;">
+          Quickly request blood from nearby blood banks.
+          They will be notified instantly.
+        </p>
+        <button onclick="openRequestModal()" class="btn btn-primary btn-lg w-100">
+          <i class="fa-solid fa-plus"></i> New Emergency Request
+        </button>
+      </div>
+    </div>
+
+    <!-- Contact Info -->
+    <div class="card">
+      <div class="card-header">
+        <i class="fa-solid fa-address-card" style="color:var(--text-muted);"></i>
+        <h3>Hospital Info</h3>
+      </div>
+      <div class="card-body" style="padding:16px 20px;">
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div class="d-flex align-center gap-8 fs-sm">
+            <i class="fa-solid fa-phone" style="color:var(--text-muted);width:16px;"></i>
+            <span>{{ hospital.contact_phone or '—' }}</span>
+          </div>
+          <div class="d-flex align-center gap-8 fs-sm">
+            <i class="fa-solid fa-envelope" style="color:var(--text-muted);width:16px;"></i>
+            <span>{{ hospital.contact_email or '—' }}</span>
+          </div>
+          <div class="d-flex align-center gap-8 fs-sm">
+            <i class="fa-solid fa-id-card" style="color:var(--text-muted);width:16px;"></i>
+            <span>{{ hospital.registration_number }}</span>
+          </div>
+          <div class="d-flex align-center gap-8 fs-sm">
+            <i class="fa-solid fa-map-pin" style="color:var(--text-muted);width:16px;"></i>
+            <span>{{ hospital.city }}, {{ hospital.state }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Recent Request History ────────────────────────────────── -->
+<div class="card">
+  <div class="card-header">
+    <i class="fa-solid fa-clock-rotate-left" style="color:var(--text-muted);"></i>
+    <h3>Recent Request History</h3>
+    <a href="{{ url_for('hospital.requests') }}" class="btn btn-ghost btn-sm">View All</a>
+  </div>
+  {% if recent_requests %}
+  <div class="table-wrap" style="border:none;border-radius:0;">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th><th>Blood Group</th><th>Component</th>
+          <th>Units</th><th>Urgency</th><th>Status</th>
+          <th>Responses</th><th>Date</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for req in recent_requests %}
+        <tr style="cursor:pointer;" onclick="window.location='/hospital/request/{{ req.id }}'">
+          <td class="text-muted fs-sm">#{{ req.id }}</td>
+          <td><strong style="color:var(--primary);">{{ req.blood_group }}</strong></td>
+          <td>{{ req.component }}</td>
+          <td>{{ req.units_required }}</td>
+          <td>
+            <span class="badge badge-{{ req.urgency_level|lower }}">{{ req.urgency_level }}</span>
+          </td>
+          <td>
+            <span class="badge badge-{{ req.status|lower }}">{{ req.status }}</span>
+          </td>
+          <td>
+            <span class="badge badge-info">{{ req.responses|length }} response{{ 's' if req.responses|length != 1 }}</span>
+          </td>
+          <td class="text-muted fs-sm">{{ req.created_at.strftime('%d %b %Y') }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <i class="fa-solid fa-inbox"></i>
+    <h4>No Requests Yet</h4>
+    <p>Your emergency request history will appear here.</p>
+  </div>
+  {% endif %}
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     EMERGENCY REQUEST MODAL
+══════════════════════════════════════════════════════════ -->
+<div id="req-modal-overlay" style="display:none;position:fixed;inset:0;
+     background:rgba(0,0,0,0.45);z-index:9000;display:none;
+     align-items:flex-start;justify-content:center;padding-top:48px;">
+  <div style="background:#fff;border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);
+              width:560px;max-width:95vw;overflow:hidden;animation:slideUp 0.25s ease;">
+
+    <div style="background:linear-gradient(135deg,#8B0000,#C0392B);padding:20px 24px;
+                display:flex;align-items:center;gap:12px;">
+      <div style="width:40px;height:40px;background:rgba(255,255,255,0.15);border-radius:50%;
+                  display:flex;align-items:center;justify-content:center;font-size:1.2rem;">🚨</div>
+      <div>
+        <h3 style="color:#fff;font-size:1rem;">New Emergency Blood Request</h3>
+        <p style="color:rgba(255,255,255,0.7);font-size:0.78rem;">Nearby blood banks will be notified immediately</p>
+      </div>
+      <button onclick="closeRequestModal()"
+              style="margin-left:auto;background:none;border:none;color:rgba(255,255,255,0.7);
+                     cursor:pointer;font-size:1.3rem;padding:4px;">×</button>
+    </div>
+
+    <div style="padding:24px;">
+      <form id="req-form" onsubmit="submitRequest(event)">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Blood Group <span style="color:var(--status-critical);">*</span></label>
+            <select name="blood_group" class="form-control" required>
+              <option value="">Select</option>
+              {% for bg in ['A+','A-','B+','B-','O+','O-','AB+','AB-'] %}
+              <option>{{ bg }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Component <span style="color:var(--status-critical);">*</span></label>
+            <select name="component" class="form-control" required>
+              <option value="">Select</option>
+              {% for c in ['Whole Blood','Packed RBC','Fresh Frozen Plasma','Platelets','Cryoprecipitate'] %}
+              <option>{{ c }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Units Required <span style="color:var(--status-critical);">*</span></label>
+            <input type="number" name="units_required" class="form-control"
+                   min="1" max="100" placeholder="e.g. 4" required/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Urgency Level <span style="color:var(--status-critical);">*</span></label>
+            <select name="urgency_level" class="form-control" required>
+              <option value="">Select</option>
+              <option value="Critical">🔴 Critical</option>
+              <option value="High">🟠 High</option>
+              <option value="Medium">🟡 Medium</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Required By (Date & Time)</label>
+          <input type="datetime-local" name="required_by_time" class="form-control"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Patient Info (optional)</label>
+          <input type="text" name="patient_info" class="form-control"
+                 placeholder="e.g. Post-surgery patient, Ward 4" maxlength="200"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Additional Notes (optional)</label>
+          <textarea name="additional_notes" class="form-control"
+                    placeholder="Any special requirements or additional details..." maxlength="500"></textarea>
+        </div>
+
+        <div id="req-result" style="display:none;"></div>
+
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px;">
+          <button type="button" onclick="closeRequestModal()" class="btn btn-ghost">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="req-submit-btn">
+            <i class="fa-solid fa-paper-plane"></i> Submit Request
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function openRequestModal(e) {
+    if (e) e.preventDefault();
+    const overlay = document.getElementById('req-modal-overlay');
+    overlay.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  }
+  function closeRequestModal() {
+    document.getElementById('req-modal-overlay').style.display = 'none';
+    document.body.style.overflow = '';
+    document.getElementById('req-result').style.display = 'none';
+    document.getElementById('req-form').reset();
+  }
+
+  async function submitRequest(e) {
+    e.preventDefault();
+    const form = e.target;
+    const btn  = document.getElementById('req-submit-btn');
+    const result = document.getElementById('req-result');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Sending…';
+
+    const data = Object.fromEntries(new FormData(form).entries());
+    try {
+      const res = await fetch('/api/request/new', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      const json = await res.json();
+      if (json.ok) {
+        result.style.display = 'block';
+        result.innerHTML = `<div class="alert alert-success">
+          <i class="fa-solid fa-circle-check"></i>
+          Request #${json.request_id} submitted. <strong>${json.notified_banks}</strong>
+          nearby blood bank(s) have been notified.
+        </div>`;
+        btn.style.display = 'none';
+        setTimeout(() => { closeRequestModal(); location.reload(); }, 3000);
+      } else {
+        throw new Error(json.error || 'Unknown error');
+      }
+    } catch(err) {
+      result.style.display = 'block';
+      result.innerHTML = `<div class="alert alert-danger">
+        <i class="fa-solid fa-circle-exclamation"></i> Error: ${err.message}
+      </div>`;
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Submit Request';
+    }
+  }
+
+  // Close modal on overlay click
+  document.getElementById('req-modal-overlay').addEventListener('click', function(e) {
+    if (e.target === this) closeRequestModal();
+  });
+</script>
+{% endblock %}
